@@ -6,12 +6,15 @@ import ScheduleTab from './ScheduleTab';
 import ScriptsTab from './ScriptsTab';
 import ContentRepositoryTab from './ContentRepositoryTab';
 import CampaignsTab from './CampaignsTab';
+import OutreachCampaignsTab from './OutreachCampaignsTab';
 
 const TABS = [
   { key: 'schedule', label: 'Monthly Schedule' },
   { key: 'scripts', label: 'Scripts Repository' },
   { key: 'content', label: 'Content Repository' },
-  { key: 'campaigns', label: 'Campaigns' },
+  { key: 'campaigns', label: 'Online Campaign' },
+  { key: 'email-campaigns', label: 'Email Campaigns' },
+  { key: 'sms-campaigns', label: 'SMS Campaigns' },
 ];
 
 const SocialMediaModule = () => {
@@ -173,6 +176,12 @@ const SocialMediaModule = () => {
       )}
       {activeTab === 'campaigns' && (
         <CampaignsTab platformFilter={platformFilter} />
+      )}
+      {activeTab === 'email-campaigns' && (
+        <OutreachCampaignsTab channel="Email" />
+      )}
+      {activeTab === 'sms-campaigns' && (
+        <OutreachCampaignsTab channel="SMS" />
       )}
     </div>
   );

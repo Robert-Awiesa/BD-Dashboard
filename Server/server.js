@@ -9,11 +9,9 @@ const { evaluateReminders } = require('./services/reminderEngine');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Middleware
-app.use(cors({
-  origin: ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:3000'],
-  credentials: true,
-}));
+// Middleware — reflect the request origin so the same API works whether the
+// SPA is served from this server or a separate origin during local dev.
+app.use(cors({ origin: true, credentials: true }));
 // Raised from the 100kb default: bulk spreadsheet imports (prospecting leads,
 // outreach recipient lists) post the parsed rows as one JSON array, and a few
 // hundred rows serialises well past 100kb — which fails as an opaque
@@ -33,6 +31,7 @@ app.get('/api/health', (req, res) => {
 // Routes
 app.use('/api/pipeline', require('./routes/pipelineRoutes'));
 app.use('/api/tenders', require('./routes/tenderRoutes'));
+app.use('/api/eois', require('./routes/eoiRoutes'));
 app.use('/api/prospecting', require('./routes/prospectingRoutes'));
 app.use('/api/cold-calls', require('./routes/coldCallRoutes'));
 app.use('/api/social-content', require('./routes/socialContentRoutes'));
@@ -50,9 +49,14 @@ app.use('/api/tasks', require('./routes/taskRoutes'));
 app.use('/api/outreach', require('./routes/outreachRoutes'));
 app.use('/api/proposals', require('./routes/proposalRoutes'));
 
-// Root
-app.get('/', (req, res) => {
-  res.json({ message: 'BD Workspace API is running', version: '1.0.0' });
+// Serve the built frontend so the SPA and API live on one origin (no CORS, and
+// relative /uploads URLs resolve correctly). Built output is copied into
+// ./dist by the root build script before this server starts.
+const distDir = path.join(__dirname, 'dist');
+app.use(express.static(distDir));
+app.get('*', (req, res, next) => {
+  if (req.path.startsWith('/api') || req.path.startsWith('/uploads')) return next();
+  res.sendFile(path.join(distDir, 'index.html'));
 });
 
 // Error handling middleware

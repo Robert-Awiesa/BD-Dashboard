@@ -6,6 +6,7 @@
 
 const Pipeline = require('../models/Pipeline');
 const Tender = require('../models/Tender');
+const Eoi = require('../models/Eoi');
 const ProspectingLead = require('../models/ProspectingLead');
 const ColdCall = require('../models/ColdCall');
 const SocialContent = require('../models/SocialContent');
@@ -61,28 +62,106 @@ exports.getAllTenders = async () => {
   return Tender.find().sort({ createdAt: -1 });
 };
 
+// The form is the single source of truth for shape, so we pass its payload
+// through with light coercion rather than enumerating every field by hand.
+const buildTenderPayload = (data) => ({
+  title: (data.title || '').trim(),
+  reference: data.reference || '',
+  source: data.source || '',
+  sourceDetail: data.sourceDetail || '',
+  issuingAuthority: data.issuingAuthority || '',
+  tenderType: data.tenderType || 'Stage One',
+  deadline: data.deadline || '',
+  status: data.status || 'Open',
+  estimatedValue: Number(data.estimatedValue) || 0,
+  pdp: {
+    objectives: data?.pdp?.objectives || '',
+    milestones: Array.isArray(data?.pdp?.milestones) ? data.pdp.milestones : [],
+    individuals: Array.isArray(data?.pdp?.individuals) ? data.pdp.individuals : [],
+    progress: Number(data?.pdp?.progress) || 0,
+    notes: data?.pdp?.notes || '',
+  },
+  fdp: {
+    currency: data?.fdp?.currency || '',
+    estimatedCost: Number(data?.fdp?.estimatedCost) || 0,
+    proposedPrice: Number(data?.fdp?.proposedPrice) || 0,
+    marginPct: Number(data?.fdp?.marginPct) || 0,
+    pricingModel: data?.fdp?.pricingModel || '',
+    assumptions: data?.fdp?.assumptions || '',
+    notes: data?.fdp?.notes || '',
+  },
+  notes: data.notes || '',
+});
+
 exports.createTender = async (data) => {
-  return Tender.create({
-    title: data.title,
-    category: data.category,
-    deadline: data.deadline || '',
-    status: data.status || 'active',
-  });
+  if (!buildTenderPayload(data).title) throw new Error('Give the tender a title');
+  return Tender.create(buildTenderPayload(data));
 };
 
 exports.updateTender = async (id, data) => {
+  const tender = await Tender.findById(id);
+  if (!tender) throw new Error('Tender not found');
+
   const { _id, ...updates } = data;
-  const updated = await Tender.findByIdAndUpdate(id, updates, {
-    returnDocument: 'after',
-    runValidators: true,
-  });
-  if (!updated) throw new Error('Tender item not found');
-  return updated;
+  const payload = buildTenderPayload(updates);
+  for (const field of ['deadline']) {
+    if (payload[field] === '') payload[field] = undefined;
+  }
+  Object.assign(tender, payload);
+  await tender.save();
+  return tender;
 };
 
 exports.deleteTender = async (id) => {
   const deleted = await Tender.findByIdAndDelete(id);
-  if (!deleted) throw new Error('Tender item not found');
+  if (!deleted) throw new Error('Tender not found');
+  return deleted;
+};
+
+// ====================
+// EOI (Expression of Interest) SERVICES
+// ====================
+
+exports.getAllEois = async () => {
+  return Eoi.find().sort({ createdAt: -1 });
+};
+
+const buildEoiPayload = (data) => ({
+  title: (data.title || '').trim(),
+  reference: data.reference || '',
+  source: data.source || '',
+  sourceDetail: data.sourceDetail || '',
+  issuingAuthority: data.issuingAuthority || '',
+  deadline: data.deadline || '',
+  status: data.status || 'Open',
+  attachmentType: data.attachmentType || '',
+  attachmentUrl: data.attachmentUrl || '',
+  attachmentFileName: data.attachmentFileName || '',
+  notes: data.notes || '',
+});
+
+exports.createEoi = async (data) => {
+  if (!buildEoiPayload(data).title) throw new Error('Give the EOI a title');
+  return Eoi.create(buildEoiPayload(data));
+};
+
+exports.updateEoi = async (id, data) => {
+  const eoi = await Eoi.findById(id);
+  if (!eoi) throw new Error('EOI not found');
+
+  const { _id, ...updates } = data;
+  const payload = buildEoiPayload(updates);
+  for (const field of ['deadline']) {
+    if (payload[field] === '') payload[field] = undefined;
+  }
+  Object.assign(eoi, payload);
+  await eoi.save();
+  return eoi;
+};
+
+exports.deleteEoi = async (id) => {
+  const deleted = await Eoi.findByIdAndDelete(id);
+  if (!deleted) throw new Error('EOI not found');
   return deleted;
 };
 

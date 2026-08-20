@@ -1,172 +1,250 @@
 import { useEffect, useState } from 'react';
 import { bdApi } from '../../context/services/api';
-import Card from '../../components/common/Card';
-import Badge from '../../components/common/Badge';
 import Button from '../../components/common/Button';
+import Badge from '../../components/common/Badge';
+import TenderFormModal from './TenderFormModal';
+import TenderDetailModal from './TenderDetailModal';
+import { EoiFormModal, EoiDetailModal } from './EOIModals';
+import { STATUS_BADGE, formatMoney, formatDate, SOURCE_LABEL } from './tenderConstants';
+
+const TABS = [
+  { id: 'tenders', label: 'Tenders' },
+  { id: 'eoi', label: 'Expression of Interest' },
+];
+
+const TenderRow = ({ tender, onOpen }) => (
+  <button
+    onClick={() => onOpen(tender)}
+    className="w-full text-left px-4 py-3 hover:bg-slate-50 cursor-pointer transition-colors first:rounded-t-xl last:rounded-b-xl"
+  >
+    <div className="flex flex-wrap items-center justify-between gap-2">
+      <div className="flex items-center gap-2 min-w-0">
+        <span className="text-sm font-semibold text-navy-900 truncate">{tender.title}</span>
+        <Badge label={tender.status} status={STATUS_BADGE[tender.status] || 'default'} />
+        {tender.tenderType && <Badge label={tender.tenderType} status="default" />}
+      </div>
+      {tender.estimatedValue ? (
+        <span className="text-xs font-semibold text-navy-900 shrink-0">{formatMoney(tender.estimatedValue)}</span>
+      ) : null}
+    </div>
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-1 text-xs text-slate-500">
+      {tender.reference && <span className="text-slate-700 font-medium">{tender.reference}</span>}
+      {tender.source && <span>· {SOURCE_LABEL(tender.source, tender.sourceDetail)}</span>}
+      {tender.issuingAuthority && <span>· {tender.issuingAuthority}</span>}
+      {tender.deadline && <span>· due {formatDate(tender.deadline)}</span>}
+      {tender.pdp?.individuals?.length > 0 && <span>· {tender.pdp.individuals.length} assigned</span>}
+    </div>
+  </button>
+);
+
+const EoiRow = ({ eoi, onOpen }) => (
+  <button
+    onClick={() => onOpen(eoi)}
+    className="w-full text-left px-4 py-3 hover:bg-slate-50 cursor-pointer transition-colors first:rounded-t-xl last:rounded-b-xl"
+  >
+    <div className="flex flex-wrap items-center justify-between gap-2">
+      <div className="flex items-center gap-2 min-w-0">
+        <span className="text-sm font-semibold text-navy-900 truncate">{eoi.title}</span>
+        <Badge label={eoi.status} status={STATUS_BADGE[eoi.status] || 'default'} />
+      </div>
+      {eoi.attachmentType ? (
+        <span className="text-[11px] text-slate-500 shrink-0">
+          {eoi.attachmentType === 'link' ? '🔗 link' : '📎 file'}
+        </span>
+      ) : null}
+    </div>
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-1 text-xs text-slate-500">
+      {eoi.reference && <span className="text-slate-700 font-medium">{eoi.reference}</span>}
+      {eoi.source && <span>· {SOURCE_LABEL(eoi.source, eoi.sourceDetail)}</span>}
+      {eoi.issuingAuthority && <span>· {eoi.issuingAuthority}</span>}
+      {eoi.deadline && <span>· due {formatDate(eoi.deadline)}</span>}
+    </div>
+  </button>
+);
 
 const TendersModule = () => {
+  const [tab, setTab] = useState('tenders');
   const [tenders, setTenders] = useState([]);
+  const [eois, setEois] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // New tender form state
-  const [showForm, setShowForm] = useState(false);
-  const [title, setTitle] = useState('');
-  const [category, setCategory] = useState('Opening Tender');
-  const [deadline, setDeadline] = useState('');
-  const [submitting, setSubmitting] = useState(false);
+  const [tenderForm, setTenderForm] = useState({ open: false, existing: null });
+  const [tenderDetail, setTenderDetail] = useState(null);
+  const [eoiForm, setEoiForm] = useState({ open: false, existing: null });
+  const [eoiDetail, setEoiDetail] = useState(null);
+
+  const refresh = () => {
+    setLoading(true);
+    Promise.all([bdApi.getTenders(), bdApi.getEois()])
+      .then(([t, e]) => {
+        setTenders(t);
+        setEois(e);
+        setError(null);
+      })
+      .catch((err) => setError(err.message))
+      .finally(() => setLoading(false));
+  };
 
   useEffect(() => {
     let ignore = false;
-    bdApi.getTenders()
-      .then((data) => {
-        if (!ignore) setTenders(data);
+    Promise.all([bdApi.getTenders(), bdApi.getEois()])
+      .then(([t, e]) => {
+        if (ignore) return;
+        setTenders(t);
+        setEois(e);
       })
-      .catch((err) => {
-        console.error("Failed to fetch tenders:", err);
-        if (!ignore) setError(err.message);
-      })
-      .finally(() => {
-        if (!ignore) setLoading(false);
-      });
-    return () => {
-      ignore = true;
-    };
+      .catch((err) => { if (!ignore) setError(err.message); })
+      .finally(() => { if (!ignore) setLoading(false); });
+    return () => { ignore = true; };
   }, []);
 
-  const handleCreate = async (e) => {
-    e.preventDefault();
-    if (!title.trim()) return;
+  const handleDeleteTender = async (tender) => {
+    if (!window.confirm(`Delete "${tender.title}"?`)) return;
     try {
-      setSubmitting(true);
-      const newTender = await bdApi.addTender({ title, category, deadline, status: 'active' });
-      setTenders([newTender, ...tenders]);
-      setTitle('');
-      setDeadline('');
-      setShowForm(false);
+      await bdApi.deleteTender(tender._id);
+      setTenderDetail(null);
+      refresh();
     } catch (err) {
-      alert(`Error creating tender: ${err.message}`);
-    } finally {
-      setSubmitting(false);
+      setError(err.message);
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm('Delete this tender notice?')) return;
+  const handleDeleteEoi = async (eoi) => {
+    if (!window.confirm(`Delete "${eoi.title}"?`)) return;
     try {
-      await bdApi.deleteTender(id);
-      setTenders(tenders.filter((t) => t._id !== id));
+      await bdApi.deleteEoi(eoi._id);
+      setEoiDetail(null);
+      refresh();
     } catch (err) {
-      alert(`Error deleting tender: ${err.message}`);
+      setError(err.message);
     }
   };
+
+  const openTenderDetail = (tender) => setTenderDetail(tender);
+  const openEoiDetail = (eoi) => setEoiDetail(eoi);
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-navy-900">Tenders & EOI</h1>
-          <p className="text-sm text-slate-600">Track public notices, expected requests for proposals, and submissions.</p>
+          <h1 className="text-2xl font-bold text-navy-900">Tenders &amp; Expression of Interest</h1>
+          <p className="text-sm text-slate-600">
+            Track public notices and early signals — plan the bid (PDP) and the money (FDP).
+          </p>
         </div>
-        <Button variant="primary" onClick={() => setShowForm(!showForm)}>
-          {showForm ? 'Cancel' : '+ Log Tender / EOI'}
-        </Button>
+        {tab === 'tenders' ? (
+          <Button variant="primary" onClick={() => setTenderForm({ open: true, existing: null })}>
+            + New tender
+          </Button>
+        ) : (
+          <Button variant="primary" onClick={() => setEoiForm({ open: true, existing: null })}>
+            + New EOI
+          </Button>
+        )}
       </div>
 
-      {showForm && (
-        <form onSubmit={handleCreate} className="p-4 bg-white border border-slate-200 rounded-xl space-y-4 shadow-sm animate-fade-in">
-          <h3 className="text-sm font-semibold text-navy-800">Log New Tender or EOI</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-xs text-slate-600 mb-1">Tender Title *</label>
-              <input
-                type="text"
-                required
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="e.g. Cloud Migration RFP"
-                className="w-full form-input"
-              />
-            </div>
-            <div>
-              <label className="block text-xs text-slate-600 mb-1">Category</label>
-              <select
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                className="w-full form-input"
-              >
-                <option value="Opening Tender">Opening Tender</option>
-                <option value="Sent Tender">Sent Tender</option>
-                <option value="EOI">EOI</option>
-                <option value="Expected RFP">Expected RFP</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs text-slate-600 mb-1">Deadline Date</label>
-              <input
-                type="date"
-                value={deadline}
-                onChange={(e) => setDeadline(e.target.value)}
-                className="w-full form-input"
-              />
-            </div>
-          </div>
-          <div className="flex justify-end gap-2">
-            <Button type="button" variant="secondary" onClick={() => setShowForm(false)}>Cancel</Button>
-            <Button type="submit" variant="primary" disabled={submitting}>
-              {submitting ? 'Saving...' : 'Save Tender'}
-            </Button>
-          </div>
-        </form>
+      {error && (
+        <div className="px-3 py-2 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">{error}</div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card title="Active & Opening Tenders / EOIs">
-          {loading ? (
-            <div className="space-y-3">
-              <div className="h-16 skeleton"></div>
-              <div className="h-16 skeleton"></div>
-            </div>
-          ) : error ? (
-            <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-              Failed to connect to backend: {error}
-            </div>
-          ) : tenders.length === 0 ? (
-            <div className="text-center py-8 text-slate-500 text-sm">No tenders logged yet.</div>
-          ) : (
-            <div className="space-y-3">
-              {tenders.map((tender) => (
-                <div key={tender._id || tender.id} className="p-4 bg-slate-50 rounded-lg border border-slate-200 flex justify-between items-center hover:border-slate-300 transition-colors">
-                  <div>
-                    <span className="text-xs text-navy-700 font-semibold uppercase">{tender.category}</span>
-                    <h4 className="font-medium text-navy-900">{tender.title}</h4>
-                    {tender.deadline && (
-                      <p className="text-xs text-slate-600 mt-1">Deadline: {tender.deadline}</p>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge label={tender.status} status={tender.status} />
-                    <button
-                      onClick={() => handleDelete(tender._id)}
-                      className="text-slate-500 hover:text-red-600 text-xs transition-colors p-1"
-                      title="Delete tender"
-                    >
-                      🗑️
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </Card>
-
-        <Card title="Newspaper Review & Expected RFPs">
-          <div className="p-6 bg-slate-50 rounded-lg border border-dashed border-slate-300 text-center space-y-2">
-            <p className="text-sm font-medium text-slate-600">Clip or upload newspaper tender entries</p>
-            <p className="text-xs text-slate-500">Drag and drop clipped notices or paste snippets here for AI extraction.</p>
-          </div>
-        </Card>
+      <div className="flex gap-1 border-b border-slate-200">
+        {TABS.map((t) => (
+          <button
+            key={t.id}
+            onClick={() => setTab(t.id)}
+            className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px cursor-pointer transition-colors ${
+              tab === t.id ? 'border-navy-700 text-navy-900' : 'border-transparent text-slate-500 hover:text-navy-700'
+            }`}
+          >
+            {t.label}
+            {t.id === 'tenders' && tenders.length > 0 && (
+              <span className="ml-1.5 px-1.5 py-0.5 rounded-full bg-slate-100 text-[11px]">{tenders.length}</span>
+            )}
+            {t.id === 'eoi' && eois.length > 0 && (
+              <span className="ml-1.5 px-1.5 py-0.5 rounded-full bg-slate-100 text-[11px]">{eois.length}</span>
+            )}
+          </button>
+        ))}
       </div>
+
+      {loading ? (
+        <div className="space-y-2">{[0, 1, 2].map((i) => <div key={i} className="skeleton h-20 rounded-xl" />)}</div>
+      ) : tab === 'tenders' ? (
+        tenders.length === 0 ? (
+          <div className="bg-white border border-slate-200 rounded-xl p-10 text-center py-12">
+            <p className="text-3xl mb-2" aria-hidden="true">📑</p>
+            <h3 className="text-base font-semibold text-navy-900">No tenders yet</h3>
+            <p className="text-sm text-slate-600 mt-1 max-w-md mx-auto">
+              Log a public notice to start planning the bid and its finances.
+            </p>
+            <div className="flex justify-center mt-4">
+              <Button variant="primary" onClick={() => setTenderForm({ open: true, existing: null })}>
+                + Create the first tender
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className="bg-white border border-slate-200 rounded-xl shadow-sm divide-y divide-slate-100">
+            {tenders.map((t) => <TenderRow key={t._id} tender={t} onOpen={openTenderDetail} />)}
+          </div>
+        )
+      ) : eois.length === 0 ? (
+        <div className="bg-white border border-slate-200 rounded-xl p-10 text-center py-12">
+          <p className="text-3xl mb-2" aria-hidden="true">📨</p>
+          <h3 className="text-base font-semibold text-navy-900">No expressions of interest yet</h3>
+          <p className="text-sm text-slate-600 mt-1 max-w-md mx-auto">
+            Capture an early signal with its clipping, screenshot, link or note.
+          </p>
+          <div className="flex justify-center mt-4">
+            <Button variant="primary" onClick={() => setEoiForm({ open: true, existing: null })}>
+              + Create the first EOI
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div className="bg-white border border-slate-200 rounded-xl shadow-sm divide-y divide-slate-100">
+          {eois.map((e) => <EoiRow key={e._id} eoi={e} onOpen={openEoiDetail} />)}
+        </div>
+      )}
+
+      {/* Tender modals */}
+      {tenderForm.open && (
+        <TenderFormModal
+          open
+          onClose={() => setTenderForm({ open: false, existing: null })}
+          onSaved={(saved) => { setTenderForm({ open: false, existing: null }); setTenderDetail(saved); refresh(); }}
+          existing={tenderForm.existing}
+        />
+      )}
+      {tenderDetail && (
+        <TenderDetailModal
+          open
+          onClose={() => setTenderDetail(null)}
+          tender={tenderDetail}
+          onEdit={(t) => { setTenderDetail(null); setTenderForm({ open: true, existing: t }); }}
+          onDelete={handleDeleteTender}
+        />
+      )}
+
+      {/* EOI modals */}
+      {eoiForm.open && (
+        <EoiFormModal
+          open
+          onClose={() => setEoiForm({ open: false, existing: null })}
+          onSaved={(saved) => { setEoiForm({ open: false, existing: null }); setEoiDetail(saved); refresh(); }}
+          existing={eoiForm.existing}
+        />
+      )}
+      {eoiDetail && (
+        <EoiDetailModal
+          open
+          onClose={() => setEoiDetail(null)}
+          eoi={eoiDetail}
+          onEdit={(e) => { setEoiDetail(null); setEoiForm({ open: true, existing: e }); }}
+          onDelete={handleDeleteEoi}
+        />
+      )}
     </div>
   );
 };

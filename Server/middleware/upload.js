@@ -10,8 +10,9 @@ const MEDIA_DIR = path.join(UPLOAD_ROOT, 'media');
 const DOCUMENTS_DIR = path.join(UPLOAD_ROOT, 'documents');
 const ASSETS_DIR = path.join(UPLOAD_ROOT, 'assets');
 const VISITS_DIR = path.join(UPLOAD_ROOT, 'visits');
+const EOIS_DIR = path.join(UPLOAD_ROOT, 'eois');
 
-for (const dir of [SCRIPTS_DIR, COVERS_DIR, MEDIA_DIR, DOCUMENTS_DIR, ASSETS_DIR, VISITS_DIR]) {
+for (const dir of [SCRIPTS_DIR, COVERS_DIR, MEDIA_DIR, DOCUMENTS_DIR, ASSETS_DIR, VISITS_DIR, EOIS_DIR]) {
   fs.mkdirSync(dir, { recursive: true });
 }
 
@@ -150,6 +151,28 @@ exports.uploadVisitPhoto = multer({
 });
 
 exports.VISIT_PHOTO_MAX_BYTES = VISIT_PHOTO_MAX_BYTES;
+
+// EOI notices: a clipping, a WhatsApp screenshot, a scanned note. Images and
+// PDFs only — anything bigger belongs on SharePoint/Drive as a link.
+const EOI_MAX_BYTES = 15 * 1024 * 1024;
+
+const EOI_EXTENSIONS = ['.pdf', '.png', '.jpg', '.jpeg', '.webp', '.gif'];
+
+const eoiFileFilter = (req, file, cb) => {
+  const ext = path.extname(file.originalname).toLowerCase();
+  if (EOI_EXTENSIONS.includes(ext) || file.mimetype.startsWith('image/') || file.mimetype === 'application/pdf') {
+    return cb(null, true);
+  }
+  cb(new Error(`Unsupported file type. Allowed: ${EOI_EXTENSIONS.join(', ')} (or a PDF/image).`));
+};
+
+exports.uploadEoi = multer({
+  storage: makeStorage(EOIS_DIR),
+  fileFilter: eoiFileFilter,
+  limits: { fileSize: EOI_MAX_BYTES },
+});
+
+exports.EOI_MAX_BYTES = EOI_MAX_BYTES;
 
 exports.MEDIA_MAX_BYTES = MEDIA_MAX_BYTES;
 exports.UPLOAD_ROOT = UPLOAD_ROOT;

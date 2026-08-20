@@ -84,6 +84,49 @@ export const bdApi = {
     return handleResponse(response);
   },
 
+  // Expression of Interest endpoints
+  async getEois() {
+    const response = await fetch(`${API_BASE_URL}/eois`);
+    return handleResponse(response);
+  },
+
+  async addEoi(eoiData) {
+    const response = await fetch(`${API_BASE_URL}/eois`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(eoiData),
+    });
+    return handleResponse(response);
+  },
+
+  async updateEoi(id, eoiData) {
+    const response = await fetch(`${API_BASE_URL}/eois/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(eoiData),
+    });
+    return handleResponse(response);
+  },
+
+  async deleteEoi(id) {
+    const response = await fetch(`${API_BASE_URL}/eois/${id}`, {
+      method: 'DELETE',
+    });
+    return handleResponse(response);
+  },
+
+  // Two-step attachment: upload the file first, then the returned record (with
+  // the stored URL) is merged back into the EOI via updateEoi.
+  async uploadEoiAttachment(id, file) {
+    const formData = new FormData();
+    formData.append('attachment', file);
+    const response = await fetch(`${API_BASE_URL}/eois/${id}/attachment`, {
+      method: 'POST',
+      body: formData,
+    });
+    return handleResponse(response);
+  },
+
   // Prospecting Leads endpoints
   async getProspectingLeads() {
     const response = await fetch(`${API_BASE_URL}/prospecting`);
@@ -282,6 +325,99 @@ export const bdApi = {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(dates),
+    });
+    return handleResponse(response);
+  },
+
+  // Email & SMS outreach campaign endpoints
+  async getOutreachMeta() {
+    const response = await fetch(`${API_BASE_URL}/outreach/meta`);
+    return handleResponse(response);
+  },
+
+  async getOutreachStats(channel) {
+    const qs = channel ? `?channel=${encodeURIComponent(channel)}` : '';
+    const response = await fetch(`${API_BASE_URL}/outreach/stats${qs}`);
+    return handleResponse(response);
+  },
+
+  async getOutreachCampaigns(filters = {}) {
+    const params = new URLSearchParams(
+      Object.entries(filters).filter(([, v]) => v !== '' && v !== null && v !== undefined)
+    );
+    const query = params.toString();
+    const response = await fetch(`${API_BASE_URL}/outreach${query ? `?${query}` : ''}`);
+    return handleResponse(response);
+  },
+
+  async addOutreachCampaign(data) {
+    const response = await fetch(`${API_BASE_URL}/outreach`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+  },
+
+  async updateOutreachCampaign(id, data) {
+    const response = await fetch(`${API_BASE_URL}/outreach/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+  },
+
+  async getOutreachRecipients(campaignId, filters = {}) {
+    const params = new URLSearchParams(
+      Object.entries(filters).filter(([, v]) => v !== '' && v !== null && v !== undefined)
+    );
+    const query = params.toString();
+    const response = await fetch(`${API_BASE_URL}/outreach/${campaignId}/recipients${query ? `?${query}` : ''}`);
+    return handleResponse(response);
+  },
+
+  async addOutreachRecipient(campaignId, data) {
+    const response = await fetch(`${API_BASE_URL}/outreach/${campaignId}/recipients`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+  },
+
+  async bulkAddOutreachRecipients(campaignId, rows) {
+    const response = await fetch(`${API_BASE_URL}/outreach/${campaignId}/recipients/bulk`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ rows }),
+    });
+    return handleResponse(response);
+  },
+
+  async updateOutreachRecipient(id, data) {
+    const response = await fetch(`${API_BASE_URL}/outreach/recipients/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+  },
+
+  async logOutreachBatch(campaignId, data) {
+    const response = await fetch(`${API_BASE_URL}/outreach/${campaignId}/batches`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+  },
+
+  async saveOutreachBatchMetrics(campaignId, batchId, metrics) {
+    const response = await fetch(`${API_BASE_URL}/outreach/${campaignId}/batches/${batchId}/metrics`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(metrics),
     });
     return handleResponse(response);
   },
