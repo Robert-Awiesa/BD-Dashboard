@@ -1,7 +1,6 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
-const cron = require('node-cron');
 require('dotenv').config();
 const connectDB = require('./config/db');
 const { evaluateReminders } = require('./services/reminderEngine');
@@ -9,13 +8,18 @@ const { evaluateReminders } = require('./services/reminderEngine');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Middleware — reflect the request origin so the same API works whether the
-// SPA is served from this server or a separate origin during local dev.
+// Middleware — express-level DB connection wrapper for Serverless execution
+app.use(async (req, res, next) => {
+  try {
+    await connectDB();
+    next();
+  } catch (err) {
+    console.error('Failed to connect to MongoDB:', err.message);
+    res.status(500).json({ message: 'Database connection failed', error: err.message });
+  }
+});
+
 app.use(cors({ origin: true, credentials: true }));
-// Raised from the 100kb default: bulk spreadsheet imports (prospecting leads,
-// outreach recipient lists) post the parsed rows as one JSON array, and a few
-// hundred rows serialises well past 100kb — which fails as an opaque
-// "request entity too large" rather than anything the UI can explain.
 app.use(express.json({ limit: '5mb' }));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
@@ -49,9 +53,7 @@ app.use('/api/tasks', require('./routes/taskRoutes'));
 app.use('/api/outreach', require('./routes/outreachRoutes'));
 app.use('/api/proposals', require('./routes/proposalRoutes'));
 
-// Serve the built frontend so the SPA and API live on one origin (no CORS, and
-// relative /uploads URLs resolve correctly). Built output is copied into
-// ./dist by the root build script before this server starts.
+// Serve static frontend assets if bundled together
 const distDir = path.join(__dirname, 'dist');
 app.use(express.static(distDir));
 app.get('*', (req, res, next) => {
@@ -65,23 +67,17 @@ app.use((err, req, res, next) => {
   res.status(500).json({ message: 'Internal server error', error: err.message });
 });
 
-connectDB()
-  .then(() => {
-    app.listen(PORT, () => {
-      console.log(`\n  🚀 BD Workspace API Server`);
-      console.log(`  ➜ Local:   http://localhost:${PORT}`);
-      console.log(`  ➜ Health:  http://localhost:${PORT}/api/health`);
-      console.log(`  ➜ Mode:    MongoDB\n`);
-    });
-
-    // Daily campaign reminder sweep (also runs once at startup so reminders
-    // aren't missed if the server was down when the day's run would have fired)
-    evaluateReminders().catch((err) => console.error('  ✗ Reminder evaluation failed:', err.message));
-    cron.schedule('0 7 * * *', () => {
-      evaluateReminders().catch((err) => console.error('  ✗ Reminder evaluation failed:', err.message));
-    });
-  })
-  .catch((err) => {
-    console.error('  ✗ Failed to connect to MongoDB:', err.message);
-    process.exit(1);
+// Local development server runner
+if (process.env.NODE_ENV !== 'production') {
+  app.listen(PORT, () => {
+    console.log(`\n  🚀 BD Workspace API Server`);
+    console.log(`  ➜ Local:   http://localhost:${PORT}`);
+    console.log(`  ➜ Health:  http://localhost:${PORT}/api/health\n`);
   });
+
+  // Evaluate reminders locally
+  evaluateReminders().catch((err) => console.error('  ✗ Reminder evaluation failed:', err.message));
+}
+
+// Export Express app for Vercel Serverless Function runtime
+module.exports = app;
