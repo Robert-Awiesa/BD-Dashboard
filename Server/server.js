@@ -3,27 +3,18 @@ const cors = require('cors');
 const path = require('path');
 require('dotenv').config();
 const connectDB = require('./config/db');
-const { evaluateReminders } = require('./services/reminderEngine');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Middleware — express-level DB connection wrapper for Serverless execution
-app.use(async (req, res, next) => {
-  try {
-    await connectDB();
-    next();
-  } catch (err) {
-    console.error('Failed to connect to MongoDB:', err.message);
-    res.status(500).json({ message: 'Database connection failed', error: err.message });
-  }
-});
+// Connect to DB asynchronously (cached internally by mongoose across invocations)
+connectDB().catch((err) => console.error('MongoDB initial connection error:', err.message));
 
 app.use(cors({ origin: true, credentials: true }));
 app.use(express.json({ limit: '5mb' }));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// Health Check
+// Health check should respond immediately without awaiting DB
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'ok',
@@ -53,31 +44,15 @@ app.use('/api/tasks', require('./routes/taskRoutes'));
 app.use('/api/outreach', require('./routes/outreachRoutes'));
 app.use('/api/proposals', require('./routes/proposalRoutes'));
 
-// Serve static frontend assets if bundled together
-const distDir = path.join(__dirname, 'dist');
-app.use(express.static(distDir));
-app.get('*', (req, res, next) => {
-  if (req.path.startsWith('/api') || req.path.startsWith('/uploads')) return next();
-  res.sendFile(path.join(distDir, 'index.html'));
-});
-
-// Error handling middleware
+// Error handler
 app.use((err, req, res, next) => {
   console.error('Server error:', err.message);
   res.status(500).json({ message: 'Internal server error', error: err.message });
 });
 
-// Local development server runner
+// Local dev setup
 if (process.env.NODE_ENV !== 'production') {
-  app.listen(PORT, () => {
-    console.log(`\n  🚀 BD Workspace API Server`);
-    console.log(`  ➜ Local:   http://localhost:${PORT}`);
-    console.log(`  ➜ Health:  http://localhost:${PORT}/api/health\n`);
-  });
-
-  // Evaluate reminders locally
-  evaluateReminders().catch((err) => console.error('  ✗ Reminder evaluation failed:', err.message));
+  app.listen(PORT, () => console.log(`Server listening on port ${PORT}`));
 }
 
-// Export Express app for Vercel Serverless Function runtime
 module.exports = app;
