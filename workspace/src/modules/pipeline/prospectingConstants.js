@@ -1,0 +1,80 @@
+export const INDUSTRY_OPTIONS = [
+  'Oil and Gas',
+  'Manufacturing',
+  'Mining',
+  'Logistics',
+  'Financial',
+  'Others',
+];
+
+export const OPPORTUNITY_STAGES = [
+  'Unqualified',
+  'Qualified',
+  'Follow-Up',
+  'Demo',
+  'Cold',
+  'Negotiation',
+  'Won',
+  'Lost',
+];
+
+// Column order matches the DB schema/Excel template exactly to prevent import mapping errors.
+export const PROSPECTING_FIELDS = [
+  'company',
+  'industry',
+  'customIndustry',
+  'contactPerson',
+  'position',
+  'companyChallenge',
+  'proposedSolution',
+  'strategicAngle',
+  'opportunityStage',
+  'primaryEmail',
+  'otherEmail',
+  'primaryContact',
+  'otherContact',
+  'linkedin',
+  'companyWebsite',
+  'location',
+  'discoveryQuestions',
+];
+
+export const PROSPECTING_FIELD_LABELS = {
+  company: 'Company',
+  industry: 'Industry',
+  customIndustry: 'Custom Industry (if Others)',
+  contactPerson: 'Contact Person',
+  position: 'Position',
+  companyChallenge: 'Company Challenge',
+  proposedSolution: 'Proposed Solution',
+  strategicAngle: 'Strategic Angle',
+  opportunityStage: 'Opportunity Stage',
+  primaryEmail: 'Primary Email',
+  otherEmail: 'Other Email',
+  primaryContact: 'Primary Contact',
+  otherContact: 'Other Contact',
+  linkedin: 'LinkedIn',
+  companyWebsite: 'Company Website',
+  location: 'Location',
+  discoveryQuestions: 'Discovery Questions',
+};
+
+export const emptyProspectingForm = {
+  company: '',
+  industry: INDUSTRY_OPTIONS[0],
+  customIndustry: '',
+  contactPerson: '',
+  position: '',
+  companyChallenge: '',
+  proposedSolution: '',
+  strategicAngle: '',
+  opportunityStage: 'Unqualified',
+  primaryEmail: '',
+  otherEmail: '',
+  primaryContact: '',
+  otherContact: '',
+  linkedin: '',
+  companyWebsite: '',
+  location: '',
+  discoveryQuestions: '',
+};

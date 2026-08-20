@@ -1,0 +1,372 @@
+@import "tailwindcss";
+
+/* ============================================
+   TGTS AFRICA — DESIGN SYSTEM
+   Brand palette: navy + forest green, light theme.
+   Central design tokens & base styles.
+   ============================================ */
+
+@theme {
+  /* Neutrals (light theme) */
+  --color-background: #F4F6FA;
+  --color-card-bg: #FFFFFF;
+  --color-card-elevated: #EEF1F8;
+  --color-border: #D8DEE9;
+  --color-border-subtle: #E7EAF2;
+  --color-text-primary: #101B36;
+  --color-text-secondary: #4B5670;
+  --color-text-muted: #6B7488;
+
+  /* Typography */
+  --font-sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+  --font-heading: 'Space Grotesk', 'Inter', system-ui, sans-serif;
+
+  /* Brand — Navy scale */
+  --color-navy-50: #EEF1F8;
+  --color-navy-100: #D6DDF0;
+  --color-navy-200: #AEBBE0;
+  --color-navy-300: #7F94CC;
+  --color-navy-400: #5570B0;
+  --color-navy-500: #35508F;
+  --color-navy-600: #233F73;
+  --color-navy-700: #1B2D5C;
+  --color-navy-800: #152449;
+  --color-navy-900: #0F1B37;
+
+  /* Brand — Forest scale */
+  --color-forest-50: #EAF6EE;
+  --color-forest-100: #CBEAD5;
+  --color-forest-200: #9AD5AE;
+  --color-forest-300: #65BB84;
+  --color-forest-400: #3B9F63;
+  --color-forest-500: #28854E;
+  --color-forest-600: #1F6E44;
+  --color-forest-700: #195A38;
+  --color-forest-800: #14472C;
+  --color-forest-900: #0F3521;
+
+  /* Semantic */
+  --color-primary: #1B2D5C;
+  --color-primary-hover: #152449;
+  --color-primary-glow: rgba(27, 45, 92, 0.15);
+  --color-success: #1F6E44;
+  --color-success-glow: rgba(31, 110, 68, 0.15);
+  --color-warning: #B7791F;
+  --color-warning-glow: rgba(183, 121, 31, 0.15);
+  --color-danger: #C0392B;
+  --color-danger-glow: rgba(192, 57, 43, 0.15);
+
+  /* Animation durations */
+  --animate-fade-in: fade-in 0.3s ease-out;
+  --animate-slide-up: slide-up 0.4s ease-out;
+  --animate-pulse-glow: pulse-glow 2s ease-in-out infinite;
+}
+
+/* Keyframes */
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 4px rgba(27, 45, 92, 0.25); }
+  50% { box-shadow: 0 0 14px rgba(27, 45, 92, 0.5); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+/* ============================================
+   BASE STYLES
+   ============================================ */
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: var(--color-background);
+  color: var(--color-text-primary);
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+  line-height: 1.6;
+}
+
+#root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Heading typeface — distinct brand voice from body copy */
+h1, h2, h3, h4 {
+  font-family: var(--font-heading);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+/* Selection */
+::selection {
+  background-color: rgba(27, 45, 92, 0.15);
+  color: #101B36;
+}
+
+/* Focus ring utility */
+*:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* ============================================
+   CUSTOM SCROLLBARS (Light Theme)
+   ============================================ */
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-background);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-navy-300);
+}
+
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border) var(--color-background);
+}
+
+/* ============================================
+   GLASSMORPHISM UTILITY
+   ============================================ */
+
+.glass-card {
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(216, 222, 233, 0.8);
+  box-shadow: 0 8px 32px rgba(16, 27, 54, 0.08);
+}
+
+/* ============================================
+   GRADIENT UTILITIES
+   ============================================ */
+
+.gradient-primary {
+  background: linear-gradient(135deg, #1B2D5C, #233F73);
+}
+
+.gradient-success {
+  background: linear-gradient(135deg, #1F6E44, #28854E);
+}
+
+.gradient-brand {
+  background: linear-gradient(135deg, #1B2D5C, #1F6E44);
+}
+
+.gradient-card-border {
+  border-image: linear-gradient(135deg, rgba(27, 45, 92, 0.25), rgba(31, 110, 68, 0.15)) 1;
+}
+
+/* ============================================
+   FORM CONTROLS
+   Shared look for every input/select/textarea in
+   the app (`.form-input`). Defined here rather than
+   in a component stylesheet so it always ships with
+   the design tokens it depends on.
+   ============================================ */
+
+.form-input {
+  background-color: var(--color-card-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  padding: 9px 12px;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--color-text-primary);
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease;
+}
+
+/* Scoped to real controls so `.form-input` can also be used as a
+   wrapper (e.g. the tag/chip field) without fighting layout utilities. */
+input.form-input,
+select.form-input,
+textarea.form-input {
+  display: block;
+  width: 100%;
+  min-height: 2.5rem;
+}
+
+textarea.form-input {
+  min-height: 4.5rem;
+}
+
+/* `:not(:focus-within)` keeps the focus colour from being overridden by hover,
+   which would otherwise win on specificity while the cursor rests on the field. */
+.form-input:hover:not(:disabled):not([readonly]):not(:focus-within) {
+  border-color: var(--color-navy-300);
+}
+
+.form-input:focus,
+.form-input:focus-within {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-glow);
+  outline: none;
+}
+
+/* The global focus-visible ring would double up with the box-shadow above. */
+.form-input:focus-visible {
+  outline: none;
+}
+
+/* Controls nested inside a `.form-input` wrapper (the tag/chip field) must stay
+   bare — the wrapper already draws the border and focus ring, so any outline or
+   border here reads as a second box drawn inside the field. */
+.form-input input,
+.form-input textarea {
+  border: none;
+  background: transparent;
+}
+
+.form-input input:focus,
+.form-input input:focus-visible,
+.form-input textarea:focus,
+.form-input textarea:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
+.form-input::placeholder {
+  color: var(--color-text-muted);
+}
+
+.form-input:disabled,
+.form-input[readonly] {
+  background-color: var(--color-card-elevated);
+  color: var(--color-text-secondary);
+  cursor: not-allowed;
+}
+
+.form-input[readonly] {
+  cursor: default;
+}
+
+/* Native select needs its own chevron once the default appearance is dropped. */
+select.form-input {
+  appearance: none;
+  padding-right: 34px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%234B5670' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 8l4 4 4-4'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 18px 18px;
+  cursor: pointer;
+}
+
+/* Date/time pickers keep their native indicator but match the control height. */
+input.form-input[type='date'],
+input.form-input[type='time'],
+input.form-input[type='datetime-local'] {
+  cursor: text;
+}
+
+.form-input::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  opacity: 0.55;
+  transition: opacity 0.15s ease;
+}
+
+.form-input::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
+}
+
+/* File inputs: style the browser's button chip. */
+input[type='file'].form-input {
+  padding: 6px 12px;
+  cursor: pointer;
+}
+
+input[type='file'].form-input::file-selector-button {
+  margin-right: 12px;
+  padding: 6px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background-color: var(--color-card-elevated);
+  color: var(--color-text-primary);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+input[type='file'].form-input::file-selector-button:hover {
+  background-color: var(--color-navy-50);
+  border-color: var(--color-navy-300);
+}
+
+/* Checkboxes / radios pick up the brand colour instead of browser blue. */
+input[type='checkbox'],
+input[type='radio'] {
+  accent-color: var(--color-primary);
+  width: 15px;
+  height: 15px;
+  cursor: pointer;
+}
+
+/* Field label — pairs with .form-input for consistent form rhythm. */
+.form-label {
+  display: block;
+  margin-bottom: 5px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+}
+
+/* ============================================
+   LOADING SKELETON
+   ============================================ */
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--color-card-elevated) 25%,
+    var(--color-border-subtle) 50%,
+    var(--color-card-elevated) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  border-radius: 6px;
+}
+
+/* ============================================
+   MODULE TRANSITION
+   ============================================ */
+
+.module-enter {
+  animation: slide-up 0.3s ease-out;
+}

@@ -1,0 +1,36 @@
+# Dependencies
+node_modules/
+
+# Environment and local config
+.env
+.env.*
+!.env.example
+.claude/settings.local.json
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Build output
+dist/
+dist-ssr/
+build/
+
+# Runtime/user uploads
+Server/uploads/
+
+# OS/editor files
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
