@@ -1,9 +1,23 @@
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
 const crypto = require('crypto');
 
-const UPLOAD_ROOT = path.join(__dirname, '..', 'uploads');
+// Serverless filesystems (Vercel, Lambda) are READ-ONLY outside the temp dir.
+// mkdirSync against a read-only path throws EROFS, and because this module is
+// pulled in at require-time by six route files, that error crashed the whole
+// function during initialisation — every endpoint returned 500, including
+// /api/health, which never touches the database.
+//
+// NOTE: os.tmpdir() is ephemeral and per-container. Uploads written there
+// survive only until that container is recycled, so file storage on serverless
+// needs a real object store (S3 / Vercel Blob / Cloudinary) to be durable.
+const IS_SERVERLESS = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
+
+const UPLOAD_ROOT = IS_SERVERLESS
+  ? path.join(os.tmpdir(), 'bd-uploads')
+  : path.join(__dirname, '..', 'uploads');
 const SCRIPTS_DIR = path.join(UPLOAD_ROOT, 'scripts');
 const COVERS_DIR = path.join(UPLOAD_ROOT, 'covers');
 const MEDIA_DIR = path.join(UPLOAD_ROOT, 'media');
@@ -12,8 +26,14 @@ const ASSETS_DIR = path.join(UPLOAD_ROOT, 'assets');
 const VISITS_DIR = path.join(UPLOAD_ROOT, 'visits');
 const EOIS_DIR = path.join(UPLOAD_ROOT, 'eois');
 
+// Never let a filesystem problem take the whole API down at boot. A failure
+// here only means uploads will not work; every other route stays up.
 for (const dir of [SCRIPTS_DIR, COVERS_DIR, MEDIA_DIR, DOCUMENTS_DIR, ASSETS_DIR, VISITS_DIR, EOIS_DIR]) {
-  fs.mkdirSync(dir, { recursive: true });
+  try {
+    fs.mkdirSync(dir, { recursive: true });
+  } catch (err) {
+    console.warn(`Upload directory unavailable (${dir}): ${err.message}`);
+  }
 }
 
 const makeStorage = (destDir) =>
