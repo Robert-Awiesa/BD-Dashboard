@@ -9,7 +9,19 @@ const PORT = process.env.PORT || 5000;
 
 const mongoose = require('mongoose');
 
-app.use(cors({ origin: true, credentials: true }));
+// Deployed as ONE Render service, the frontend is same-origin and needs no
+// CORS at all. CORS_ORIGINS exists for the split case (frontend hosted
+// separately) — set it to a comma-separated list rather than reflecting any
+// origin, which with credentials:true would let any site call this API.
+const allowedOrigins = (process.env.CORS_ORIGINS || '')
+  .split(',')
+  .map((o) => o.trim())
+  .filter(Boolean);
+
+app.use(cors({
+  origin: allowedOrigins.length ? allowedOrigins : true,
+  credentials: true,
+}));
 app.use(express.json({ limit: '5mb' }));
 // Serve from wherever the upload middleware actually put things — on
 // serverless that is the temp dir, not the repo folder.
@@ -118,6 +130,29 @@ mount('/api/proposals', './routes/proposalRoutes');
 
 
 
+// ---------------------------------------------------------------------------
+// Frontend. The root build script copies workspace/dist into Server/dist, so a
+// single Render web service serves the API and the SPA from one origin — which
+// is why the client can use a relative "/api" base and needs no CORS.
+// ---------------------------------------------------------------------------
+const DIST_DIR = path.join(__dirname, 'dist');
+app.use(express.static(DIST_DIR));
+
+// SPA fallback. Written as plain middleware rather than app.get('*') because
+// Express 5 uses path-to-regexp v8, where a bare '*' is no longer a valid path.
+// Anything that is not an API or upload request falls through to index.html.
+app.use((req, res, next) => {
+  if (req.method !== 'GET') return next();
+  if (req.path.startsWith('/api') || req.path.startsWith('/uploads')) return next();
+  // The { root } form, not an absolute path: Express 5 delegates to send(),
+  // which rejects a Windows-style absolute path with a bare "Not Found" even
+  // when the file is right there. This form works on both platforms.
+  res.sendFile('index.html', { root: DIST_DIR }, (err) => {
+    // No build present (e.g. API-only deploy) — fall through to the 404.
+    if (err) next();
+  });
+});
+
 // Error handler
 app.use((err, req, res, next) => {
   console.error('Server error:', err.message);
@@ -128,8 +163,36 @@ app.use((err, req, res, next) => {
 // correct, so check the platform flag as well as NODE_ENV rather than
 // trusting NODE_ENV alone to be set the way we expect.
 const IS_SERVERLESS = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
-if (!IS_SERVERLESS && process.env.NODE_ENV !== 'production') {
-  app.listen(PORT, () => console.log(`Server listening on port ${PORT}`));
+
+// The nightly reminder sweep. Nine evaluators depend on it (stale documents,
+// quiet clients, overdue commitments, renewals, unwritten visit reports,
+// unscored email batches, milestones, events, proposals) and it has not run in
+// production since it was stripped out for serverless, where there is no
+// long-lived process to host it. A persistent Render service can.
+const startReminderSweep = () => {
+  if (IS_SERVERLESS || process.env.DISABLE_CRON === 'true') return;
+  const cron = require('node-cron');
+  const { evaluateReminders } = require('./services/reminderEngine');
+
+  const sweep = () =>
+    connectDB()
+      .then(evaluateReminders)
+      .then((r) => console.log(`Reminder sweep: ${r.length} reminder(s) raised`))
+      .catch((err) => console.error('Reminder sweep failed:', err.message));
+
+  // Once on boot so a redeploy cannot skip a day, then every morning at 07:00.
+  // upsertReminder is keyed on (sourceType, sourceId, day), so running twice in
+  // one day updates rather than duplicates.
+  sweep();
+  cron.schedule('0 7 * * *', sweep);
+  console.log('Reminder sweep scheduled (daily 07:00)');
+};
+
+if (!IS_SERVERLESS) {
+  app.listen(PORT, () => {
+    console.log(`Server listening on port ${PORT}`);
+    startReminderSweep();
+  });
 }
 
 module.exports = app;

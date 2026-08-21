@@ -1,0 +1,19 @@
+# Render blueprint. One web service serves both the Express API and the built
+# SPA from a single origin, which is why the frontend can use a relative "/api"
+# base and needs no CORS configuration.
+services:
+  - type: web
+    name: bd-workspace
+    runtime: node
+    plan: free
+    buildCommand: npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MONGODB_DB_NAME
+        value: bd_workspace
+      # Set in the Render dashboard, never committed.
+      - key: MONGODB_URI
+        sync: false
