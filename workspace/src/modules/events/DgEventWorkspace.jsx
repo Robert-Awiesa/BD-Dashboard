@@ -28,6 +28,7 @@ const DgEventWorkspace = () => {
   const [error, setError] = useState(null);
 
   const [showNew, setShowNew] = useState(false);
+  const [editingId, setEditingId] = useState(null);
   const [newEdition, setNewEdition] = useState(emptyEdition);
   const [submitting, setSubmitting] = useState(false);
 
@@ -66,21 +67,57 @@ const DgEventWorkspace = () => {
   const createEdition = async () => {
     setSubmitting(true);
     try {
-      const created = await bdApi.addDgEvent({
+      const payload = {
         ...newEdition,
         fiscalYear: Number(newEdition.fiscalYear),
         totalBudgetAllocated: Number(newEdition.totalBudgetAllocated) || 0,
         budgetSpent: Number(newEdition.budgetSpent) || 0,
         eventDate: newEdition.eventDate || null,
-      });
-      upsert(created);
-      setActiveId(created._id);
+      };
+      const saved = editingId
+        ? await bdApi.updateDgEvent(editingId, payload)
+        : await bdApi.addDgEvent(payload);
+      upsert(saved);
+      setActiveId(saved._id);
       setNewEdition(emptyEdition);
+      setEditingId(null);
       setShowNew(false);
     } catch (err) {
       setError(err.message);
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const startEditEdition = () => {
+    if (!active) return;
+    setNewEdition({
+      ...emptyEdition,
+      dgEventTitle: active.dgEventTitle || '',
+      fiscalYear: active.fiscalYear ?? emptyEdition.fiscalYear,
+      overallTheme: active.overallTheme || '',
+      totalBudgetAllocated: active.totalBudgetAllocated ?? '',
+      budgetSpent: active.budgetSpent ?? '',
+      eventDate: active.eventDate ? String(active.eventDate).slice(0, 10) : '',
+      venue: active.venue || '',
+      executiveSponsor: active.executiveSponsor || '',
+    });
+    setEditingId(active._id);
+    setShowNew(true);
+  };
+
+  const removeEdition = async () => {
+    if (!active) return;
+    if (!window.confirm(`Delete "${active.dgEventTitle}" and all of its phase tasks?`)) return;
+    try {
+      await bdApi.deleteDgEvent(active._id);
+      setEditions((prev) => {
+        const next = prev.filter((e) => e._id !== active._id);
+        setActiveId(next[0]?._id || null);
+        return next;
+      });
+    } catch (err) {
+      setError(err.message);
     }
   };
 
@@ -158,7 +195,20 @@ const DgEventWorkspace = () => {
             </select>
           )}
         </div>
-        <Button variant="primary" onClick={() => setShowNew(true)}>+ New Edition</Button>
+        <div className="flex flex-wrap gap-2">
+          {active && (
+            <>
+              <Button variant="secondary" onClick={startEditEdition}>✎ Edit Edition</Button>
+              <Button variant="danger" onClick={removeEdition}>🗑 Delete Edition</Button>
+            </>
+          )}
+          <Button
+            variant="primary"
+            onClick={() => { setEditingId(null); setNewEdition(emptyEdition); setShowNew(true); }}
+          >
+            + New Edition
+          </Button>
+        </div>
       </div>
 
       {error && <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">{error}</div>}
@@ -331,14 +381,16 @@ const DgEventWorkspace = () => {
 
       <Modal
         open={showNew}
-        onClose={() => setShowNew(false)}
-        title="New DG Annual Edition"
-        description="Five planning phases are created automatically."
+        onClose={() => { setShowNew(false); setEditingId(null); }}
+        title={editingId ? 'Edit DG Annual Edition' : 'New DG Annual Edition'}
+        description={editingId
+          ? 'Phase tasks already logged are untouched.'
+          : 'Five planning phases are created automatically.'}
         footer={
           <div className="flex justify-end gap-2">
-            <Button type="button" variant="secondary" onClick={() => setShowNew(false)}>Cancel</Button>
+            <Button type="button" variant="secondary" onClick={() => { setShowNew(false); setEditingId(null); }}>Cancel</Button>
             <Button type="button" variant="primary" onClick={createEdition} disabled={submitting || !newEdition.dgEventTitle.trim()}>
-              {submitting ? 'Creating...' : 'Create Edition'}
+              {submitting ? 'Saving...' : editingId ? 'Save Changes' : 'Create Edition'}
             </Button>
           </div>
         }

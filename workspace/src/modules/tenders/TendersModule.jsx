@@ -119,6 +119,9 @@ const TendersModule = () => {
   const [eois, setEois] = useState([]);
   const [stats, setStats] = useState(null);
   const [owners, setOwners] = useState([]);
+  const [authorities, setAuthorities] = useState([]);
+  const [runwayDays, setRunwayDays] = useState(60);
+  const [runway, setRunway] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -154,18 +157,29 @@ const TendersModule = () => {
 
   useEffect(() => {
     let ignore = false;
+    if (runwayDays === 60) return undefined;
+    bdApi.getDeadlineRunway(runwayDays)
+      .then((rows) => { if (!ignore) setRunway(rows); })
+      .catch((err) => { if (!ignore) setError(err.message); });
+    return () => { ignore = true; };
+  }, [runwayDays, refreshToken]);
+
+  useEffect(() => {
+    let ignore = false;
     Promise.all([
       bdApi.getTenders({ search: debouncedSearch, view, status, source, owner, sort }),
       bdApi.getEois({ search: debouncedSearch, view, status, source, owner }),
       bdApi.getTenderStats(),
       bdApi.getTenderOwners(),
+      bdApi.getIssuingAuthorities(),
     ])
-      .then(([t, e, s, o]) => {
+      .then(([t, e, s, o, a]) => {
         if (ignore) return;
         setTenders(t);
         setEois(e);
         setStats(s);
         setOwners(o);
+        setAuthorities(a);
         setError(null);
       })
       .catch((err) => { if (!ignore) setError(err.message); })
@@ -205,6 +219,10 @@ const TendersModule = () => {
   const resetFilters = () => {
     setSearch(''); setView(''); setStatus(''); setSource(''); setOwner(''); setSort('deadline');
   };
+
+  // The stats call already carries the default 60-day runway, so only a
+  // non-default window costs an extra request.
+  const runwayRows = runway ?? stats?.runway ?? [];
 
   return (
     <div className="space-y-6">
@@ -380,13 +398,25 @@ const TendersModule = () => {
             does not care which tab it lives on. */}
         <div className="xl:col-span-1 space-y-4">
           <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
-            <h3 className="text-sm font-semibold text-navy-900">Deadline runway</h3>
-            <p className="text-xs text-slate-500 mb-3">Tenders and EOIs together, next 60 days.</p>
-            {!stats?.runway?.length ? (
-              <p className="text-xs text-slate-400 py-2">Nothing closing in the next 60 days.</p>
+            <div className="flex items-center justify-between gap-2">
+              <h3 className="text-sm font-semibold text-navy-900">Deadline runway</h3>
+              <select
+                aria-label="Runway window"
+                value={runwayDays}
+                onChange={(e) => { setRunway(null); setRunwayDays(Number(e.target.value)); }}
+                className="form-input text-xs py-1"
+              >
+                {[30, 60, 90].map((d) => <option key={d} value={d}>{d} days</option>)}
+              </select>
+            </div>
+            <p className="text-xs text-slate-500 mb-3">
+              Tenders and EOIs together, next {runwayDays} days.
+            </p>
+            {!runwayRows.length ? (
+              <p className="text-xs text-slate-400 py-2">Nothing closing in the next {runwayDays} days.</p>
             ) : (
               <ul className="space-y-1.5">
-                {stats.runway.map((r) => (
+                {runwayRows.map((r) => (
                   <li key={`${r.kind}-${r._id}`}>
                     <button
                       onClick={() => (r.kind === 'Tender' ? openTenderDetail(r) : openEoiDetail(r))}
@@ -469,6 +499,7 @@ const TendersModule = () => {
           onSaved={(saved) => { setTenderForm({ open: false, existing: null }); setTenderDetail(saved); refresh(); }}
           existing={tenderForm.existing}
           owners={owners}
+          authorities={authorities}
         />
       )}
       {tenderDetail && (
@@ -491,6 +522,7 @@ const TendersModule = () => {
           onSaved={(saved) => { setEoiForm({ open: false, existing: null }); setEoiDetail(saved); refresh(); }}
           existing={eoiForm.existing}
           owners={owners}
+          authorities={authorities}
         />
       )}
       {eoiDetail && (

@@ -52,6 +52,8 @@ const NewIndustryModule = () => {
   const [submitting, setSubmitting] = useState(false);
 
   const [selectedItem, setSelectedItem] = useState(null);
+  const [editingId, setEditingId] = useState(null);
+  const [converting, setConverting] = useState(false);
 
   const updateForm = (field) => (e) => setForm((f) => ({ ...f, [field]: e.target.value }));
 
@@ -78,17 +80,56 @@ const NewIndustryModule = () => {
     if (!form.name.trim()) return;
     try {
       setSubmitting(true);
-      const newItem = await bdApi.addPipelineItem({
-        ...form,
-        value: form.value ? Number(form.value) : 0,
-      });
-      setItems((prev) => [newItem, ...prev]);
+      const payload = { ...form, value: form.value ? Number(form.value) : 0 };
+      if (editingId) {
+        const saved = await bdApi.updatePipelineItem(editingId, payload);
+        setItems((prev) => prev.map((it) => (it._id === saved._id ? saved : it)));
+        setSelectedItem((cur) => (cur && cur._id === saved._id ? saved : cur));
+        setEditingId(null);
+      } else {
+        const newItem = await bdApi.addPipelineItem(payload);
+        setItems((prev) => [newItem, ...prev]);
+      }
       setForm(emptyForm);
       setShowForm(false);
     } catch (err) {
-      alert(`Error creating item: ${err.message}`);
+      alert(`Error saving item: ${err.message}`);
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  // Load an existing item into the same form the create flow uses, rather than
+  // maintaining a second edit form that could drift from it.
+  const startEdit = (item) => {
+    setForm({
+      name: item.name || '',
+      type: item.type || 'New Industry',
+      contact: item.contact || '',
+      status: item.status || 'active',
+      priority: item.priority || 'Medium',
+      value: item.value ?? '',
+      nextFollowUp: item.nextFollowUp ? String(item.nextFollowUp).slice(0, 10) : '',
+      source: item.source || '',
+      notes: item.notes || '',
+    });
+    setEditingId(item._id);
+    setSelectedItem(null);
+    setShowForm(true);
+  };
+
+  // A won pipeline item becomes an account in Client Relations. The server
+  // refuses a second conversion, so the error is surfaced rather than swallowed.
+  const handleConvert = async (item) => {
+    setConverting(true);
+    try {
+      await bdApi.convertPipelineItemToClient(item._id, {});
+      alert(`"${item.name}" is now a client — find it under Client Relations.`);
+      setSelectedItem(null);
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setConverting(false);
     }
   };
 
@@ -110,13 +151,22 @@ const NewIndustryModule = () => {
           <h2 className="text-lg font-bold text-navy-900">New Industry</h2>
           <p className="text-sm text-slate-600">New vertical / market exploration.</p>
         </div>
-        <Button variant="primary" onClick={() => setShowForm(!showForm)}>
+        <Button
+          variant="primary"
+          onClick={() => {
+            if (showForm) { setForm(emptyForm); setEditingId(null); }
+            setShowForm(!showForm);
+          }}
+        >
           {showForm ? 'Cancel' : '+ New Pipeline Item'}
         </Button>
       </div>
 
       {showForm && (
         <form onSubmit={handleCreate} className="p-4 bg-white border border-slate-200 rounded-xl space-y-4 shadow-sm animate-fade-in">
+          {editingId && (
+            <p className="text-xs font-semibold text-navy-800">Editing an existing pipeline item</p>
+          )}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs text-slate-600 mb-1">Lead / Company Name *</label>
@@ -203,7 +253,7 @@ const NewIndustryModule = () => {
           <div className="flex justify-end gap-2">
             <Button type="button" variant="secondary" onClick={() => setShowForm(false)}>Cancel</Button>
             <Button type="submit" variant="primary" disabled={submitting}>
-              {submitting ? 'Saving...' : 'Save Item'}
+              {submitting ? 'Saving...' : editingId ? 'Save Changes' : 'Save Item'}
             </Button>
           </div>
         </form>
@@ -308,9 +358,19 @@ const NewIndustryModule = () => {
                 </dd>
               </div>
             )}
-            <div className="flex justify-end pt-2 border-t border-slate-200">
+            <div className="flex flex-wrap justify-end gap-2 pt-2 border-t border-slate-200">
               <Button variant="danger" onClick={() => handleDelete(selectedItem._id)}>
                 🗑️ Delete Item
+              </Button>
+              <Button
+                variant="success"
+                disabled={converting}
+                onClick={() => handleConvert(selectedItem)}
+              >
+                {converting ? 'Converting…' : '🤝 Convert to client'}
+              </Button>
+              <Button variant="primary" onClick={() => startEdit(selectedItem)}>
+                ✎ Edit Item
               </Button>
             </div>
           </div>

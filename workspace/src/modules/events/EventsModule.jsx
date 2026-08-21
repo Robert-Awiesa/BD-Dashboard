@@ -20,6 +20,7 @@ const EventsModule = () => {
   const [events, setEvents] = useState([]);
   const [milestones, setMilestones] = useState([]);
   const [reminders, setReminders] = useState([]);
+  const [sweeping, setSweeping] = useState(false);
   const [scripts, setScripts] = useState([]);
   const [campaigns, setCampaigns] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -152,6 +153,22 @@ const EventsModule = () => {
     }
   };
 
+  // The sweep is cron'd for 07:00 daily on the server, but a host that sleeps
+  // can miss it — and after logging a batch of work you often want the queue
+  // recomputed now rather than tomorrow.
+  const runSweep = async () => {
+    setSweeping(true);
+    try {
+      await bdApi.evaluateReminders();
+      const fresh = await bdApi.getReminders();
+      setReminders(fresh.filter((r) => ['Event', 'Milestone'].includes(r.sourceType)));
+    } catch (err) {
+      alert(`Could not run the reminder sweep: ${err.message}`);
+    } finally {
+      setSweeping(false);
+    }
+  };
+
   const dismissReminder = async (id) => {
     try {
       await bdApi.actionReminder(id);
@@ -228,9 +245,21 @@ const EventsModule = () => {
         <DgEventWorkspace />
       ) : (
         <>
-          {reminders.length > 0 && (
-            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 space-y-2">
-              <h4 className="text-xs font-semibold text-amber-800 uppercase tracking-wide">🔔 Reminders ({reminders.length})</h4>
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 space-y-2">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h4 className="text-xs font-semibold text-amber-800 uppercase tracking-wide">🔔 Reminders ({reminders.length})</h4>
+                <button
+                  type="button"
+                  onClick={runSweep}
+                  disabled={sweeping}
+                  className="text-xs font-medium text-amber-800 hover:text-amber-950 underline cursor-pointer disabled:opacity-50"
+                >
+                  {sweeping ? 'Checking…' : 'Check now'}
+                </button>
+              </div>
+              {reminders.length === 0 && (
+                <p className="text-xs text-amber-700">Nothing needs chasing right now.</p>
+              )}
               <div className="space-y-1.5">
                 {reminders.map((r) => (
                   <div key={r._id} className="flex items-start justify-between gap-3 bg-white border border-amber-100 rounded-lg px-3 py-2">
@@ -244,9 +273,8 @@ const EventsModule = () => {
                     <button type="button" onClick={() => dismissReminder(r._id)} className="text-xs text-slate-500 hover:text-slate-700 cursor-pointer shrink-0">Dismiss</button>
                   </div>
                 ))}
-              </div>
             </div>
-          )}
+          </div>
 
           <div className="grid grid-cols-1 xl:grid-cols-[3fr_2fr] gap-6 items-start">
             {/* Left zone — operational events */}

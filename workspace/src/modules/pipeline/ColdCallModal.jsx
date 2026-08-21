@@ -3,8 +3,41 @@ import Modal from '../../components/common/Modal';
 import Button from '../../components/common/Button';
 import { INDUSTRY_OPTIONS, CALL_OUTCOMES, emptyColdCallForm } from './coldCallConstants';
 
-const ColdCallModal = ({ open, onClose, onSubmit, submitting }) => {
-  const [form, setForm] = useState(emptyColdCallForm);
+
+// Stored records use null for unset fields, but an <input value> must never be
+// null or React switches the field to uncontrolled. Prefill through this.
+const toLocalInput = (value) => {
+  if (!value) return '';
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return '';
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+    + `T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+};
+
+const fromRecord = (blank, record) => {
+  const out = { ...blank };
+  for (const key of Object.keys(blank)) {
+    const value = record[key];
+    out[key] = value === null || value === undefined ? blank[key] : value;
+  }
+  return out;
+};
+
+// `editing` prefills the form to correct a logged call. The parent keys this
+// modal on the call id so it remounts, making this initial state correct.
+const ColdCallModal = ({ open, onClose, onSubmit, submitting, editing = null }) => {
+  const [form, setForm] = useState(
+    editing
+      ? {
+          ...fromRecord(emptyColdCallForm, editing),
+          // A datetime-local input only accepts YYYY-MM-DDTHH:mm. Handing it the
+          // stored ISO string leaves the field blank, and saving would then wipe
+          // the follow-up date that was already set.
+          followUpAt: toLocalInput(editing.followUpAt),
+        }
+      : emptyColdCallForm
+  );
   const [error, setError] = useState(null);
 
   const updateForm = (field) => (e) => setForm((f) => ({ ...f, [field]: e.target.value }));
@@ -28,7 +61,7 @@ const ColdCallModal = ({ open, onClose, onSubmit, submitting }) => {
     }
     try {
       await onSubmit(form);
-      setForm(emptyColdCallForm);
+      if (!editing) setForm(emptyColdCallForm);
     } catch (err) {
       setError(err.message);
     }
@@ -38,7 +71,7 @@ const ColdCallModal = ({ open, onClose, onSubmit, submitting }) => {
     <div className="flex justify-end gap-2">
       <Button type="button" variant="secondary" onClick={handleClose}>Cancel</Button>
       <Button type="button" variant="primary" onClick={handleSubmit} disabled={submitting}>
-        {submitting ? 'Logging...' : 'Log Call'}
+        {submitting ? 'Saving...' : editing ? 'Save Changes' : 'Log Call'}
       </Button>
     </div>
   );
@@ -47,7 +80,7 @@ const ColdCallModal = ({ open, onClose, onSubmit, submitting }) => {
     <Modal
       open={open}
       onClose={handleClose}
-      title="Log Cold Call"
+      title={editing ? 'Edit Cold Call' : 'Log Cold Call'}
       description="Fast-entry log for outbound call activity"
       footer={footer}
     >

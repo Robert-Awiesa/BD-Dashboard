@@ -49,9 +49,26 @@ const normalizeRow = (row) => {
   return normalized;
 };
 
-const ProspectingModal = ({ open, onClose, onSubmitManual, onSubmitBulk, submitting }) => {
+
+// Stored records use null for unset fields, but an <input value> must never be
+// null or React switches the field to uncontrolled. Prefill through this.
+const fromRecord = (blank, record) => {
+  const out = { ...blank };
+  for (const key of Object.keys(blank)) {
+    const value = record[key];
+    out[key] = value === null || value === undefined ? blank[key] : value;
+  }
+  return out;
+};
+
+// `editing` prefills the form to correct an existing lead. The parent gives the
+// modal a key of the lead id, so React remounts it and this initial state is
+// simply right — no effect syncing props into state.
+const ProspectingModal = ({ open, onClose, onSubmitManual, onSubmitBulk, submitting, editing = null }) => {
   const [activeTab, setActiveTab] = useState(TABS.MANUAL);
-  const [form, setForm] = useState(emptyProspectingForm);
+  const [form, setForm] = useState(
+    editing ? fromRecord(emptyProspectingForm, editing) : emptyProspectingForm
+  );
   const [formError, setFormError] = useState(null);
 
   const [dragActive, setDragActive] = useState(false);
@@ -89,7 +106,7 @@ const ProspectingModal = ({ open, onClose, onSubmitManual, onSubmitBulk, submitt
     }
     try {
       await onSubmitManual(form);
-      resetState();
+      if (!editing) resetState();
     } catch (err) {
       setFormError(err.message);
     }
@@ -155,8 +172,8 @@ const ProspectingModal = ({ open, onClose, onSubmitManual, onSubmitBulk, submitt
   };
 
   return (
-    <Modal open={open} onClose={handleClose} title="New Pipeline Item">
-      <div className="flex gap-1 mb-5 border-b border-slate-200">
+    <Modal open={open} onClose={handleClose} title={editing ? 'Edit Lead' : 'New Pipeline Item'}>
+      <div className={`flex gap-1 mb-5 border-b border-slate-200 ${editing ? 'hidden' : ''}`}>
         <button
           type="button"
           onClick={() => setActiveTab(TABS.MANUAL)}
@@ -298,7 +315,7 @@ const ProspectingModal = ({ open, onClose, onSubmitManual, onSubmitBulk, submitt
           <div className="flex justify-end gap-2 pt-3 mt-1 border-t border-slate-200 sticky bottom-0 bg-white/95 backdrop-blur-sm">
             <Button type="button" variant="secondary" onClick={handleClose}>Cancel</Button>
             <Button type="submit" variant="primary" disabled={submitting}>
-              {submitting ? 'Saving...' : 'Save Lead'}
+              {submitting ? 'Saving...' : editing ? 'Save Changes' : 'Save Lead'}
             </Button>
           </div>
         </form>

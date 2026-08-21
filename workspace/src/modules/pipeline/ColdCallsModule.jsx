@@ -27,6 +27,7 @@ const ColdCallsModule = () => {
   const [submitting, setSubmitting] = useState(false);
 
   const [selectedCall, setSelectedCall] = useState(null);
+  const [editingCall, setEditingCall] = useState(null);
   const [search, setSearch] = useState('');
   const [convertError, setConvertError] = useState(null);
 
@@ -56,8 +57,15 @@ const ColdCallsModule = () => {
         followUpAt: form.followUpAt || null,
       };
       if (payload.industry !== 'Others') payload.customIndustry = '';
-      const newCall = await bdApi.addColdCall(payload);
-      setCalls((prev) => [newCall, ...prev]);
+      if (editingCall) {
+        const saved = await bdApi.updateColdCall(editingCall._id, payload);
+        setCalls((prev) => prev.map((c) => (c._id === saved._id ? saved : c)));
+        setSelectedCall((cur) => (cur && cur._id === saved._id ? saved : cur));
+        setEditingCall(null);
+      } else {
+        const newCall = await bdApi.addColdCall(payload);
+        setCalls((prev) => [newCall, ...prev]);
+      }
       setShowModal(false);
     } finally {
       setSubmitting(false);
@@ -197,10 +205,12 @@ const ColdCallsModule = () => {
       )}
 
       <ColdCallModal
+        key={editingCall?._id || 'new'}
         open={showModal}
-        onClose={() => setShowModal(false)}
+        onClose={() => { setShowModal(false); setEditingCall(null); }}
         onSubmit={handleSubmit}
         submitting={submitting}
+        editing={editingCall}
       />
 
       <Modal open={!!selectedCall} onClose={() => setSelectedCall(null)} title={selectedCall?.prospectName}>
@@ -248,9 +258,17 @@ const ColdCallsModule = () => {
                   Convert to Prospecting Lead
                 </Button>
               ) : <span />}
-              <Button variant="danger" onClick={() => handleDelete(selectedCall._id)}>
-                🗑️ Delete Call
-              </Button>
+              <div className="flex gap-2">
+                <Button variant="danger" onClick={() => handleDelete(selectedCall._id)}>
+                  🗑️ Delete Call
+                </Button>
+                <Button
+                  variant="primary"
+                  onClick={() => { setEditingCall(selectedCall); setShowModal(true); }}
+                >
+                  ✎ Edit Call
+                </Button>
+              </div>
             </div>
           </div>
         )}

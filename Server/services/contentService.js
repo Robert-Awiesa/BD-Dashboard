@@ -52,6 +52,7 @@ exports.getAllContent = async (filters = {}) => {
     assetCategory,
     objectionCategory,
     leadMagnetStatus,
+    author,
     includeArchived,
     sort = 'recent',
   } = filters;
@@ -64,6 +65,9 @@ exports.getAllContent = async (filters = {}) => {
   if (objectionCategory) query.objectionCategory = objectionCategory;
   if (leadMagnetStatus) query.leadMagnetStatus = leadMagnetStatus;
   if (tag) query.tags = tag;
+  // Exact match: the author list the UI offers comes from distinct() on this
+  // same field, so anything it can pick is a value that exists.
+  if (author) query.authorOrUploader = author;
   if (!includeArchived || includeArchived === 'false') query.archived = { $ne: true };
 
   if (search) {

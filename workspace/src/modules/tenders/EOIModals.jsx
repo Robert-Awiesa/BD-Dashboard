@@ -231,6 +231,22 @@ const EoiDetailModal = ({ open, onClose, eoi, onEdit, onDelete, onChanged, onCon
     }
   };
 
+  // The API refuses to delete an EOI that has not been archived, because the
+  // decision trail goes with it. So Delete only appears once it is archived —
+  // the rule is visible in the buttons rather than sprung as an error.
+  const toggleArchive = async () => {
+    setBusy(true);
+    setActionError(null);
+    try {
+      await bdApi.setEoiArchived(eoi._id, !eoi.archived);
+      onChanged?.(await bdApi.getEoi(eoi._id));
+    } catch (err) {
+      setActionError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const [confirmDelete, setConfirmDelete] = useState(false);
   if (!eoi) return null;
 
@@ -245,8 +261,13 @@ const EoiDetailModal = ({ open, onClose, eoi, onEdit, onDelete, onChanged, onCon
           </>
         ) : (
           <>
-            <Button variant="danger" onClick={() => setConfirmDelete(true)}>Delete</Button>
-            {!eoi.convertedToTender && eoi.decision !== 'Pass' && (
+            <Button variant="secondary" onClick={toggleArchive} disabled={busy}>
+              {eoi.archived ? '↩ Restore' : '🗄 Archive'}
+            </Button>
+            {eoi.archived && (
+              <Button variant="danger" onClick={() => setConfirmDelete(true)}>Delete</Button>
+            )}
+            {!eoi.archived && !eoi.convertedToTender && eoi.decision !== 'Pass' && (
               <Button variant="success" onClick={convert} disabled={busy}>
                 ⇪ Convert to tender
               </Button>

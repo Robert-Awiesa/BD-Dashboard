@@ -23,6 +23,8 @@ const SocialMediaModule = () => {
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('schedule');
   const [platformFilter, setPlatformFilter] = useState(null);
+  // Email and SMS have no platform, so the platform cards are hidden there.
+  const isOutreachTab = activeTab === 'email-campaigns' || activeTab === 'sms-campaigns';
 
   useEffect(() => {
     let ignore = false;
@@ -78,6 +80,7 @@ const SocialMediaModule = () => {
         <p className="text-sm text-slate-600">Plan posts, store scripts, and archive published content in one synced workspace.</p>
       </div>
 
+      {!isOutreachTab && (
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         {PLATFORMS.map((plat) => {
           const isActive = platformFilter === plat.key;
@@ -109,8 +112,9 @@ const SocialMediaModule = () => {
           );
         })}
       </div>
+      )}
 
-      {platformFilter && (
+      {!isOutreachTab && platformFilter && (
         <div className="flex items-center gap-2 text-sm text-slate-600">
           Filtering by <span className="font-semibold text-navy-800">{platformFilter}</span>
           <button type="button" onClick={() => setPlatformFilter(null)} className="text-navy-700 hover:underline cursor-pointer">
@@ -178,10 +182,10 @@ const SocialMediaModule = () => {
         <CampaignsTab platformFilter={platformFilter} />
       )}
       {activeTab === 'email-campaigns' && (
-        <OutreachCampaignsTab channel="Email" />
+        <OutreachCampaignsTab key="Email" channel="Email" />
       )}
       {activeTab === 'sms-campaigns' && (
-        <OutreachCampaignsTab channel="SMS" />
+        <OutreachCampaignsTab key="SMS" channel="SMS" />
       )}
     </div>
   );

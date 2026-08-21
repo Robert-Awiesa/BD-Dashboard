@@ -20,7 +20,7 @@ const Section = ({ title, hint, children }) => (
   </fieldset>
 );
 
-const TenderFormModal = ({ open, onClose, onSaved, existing, owners = [] }) => {
+const TenderFormModal = ({ open, onClose, onSaved, existing, owners = [], authorities = [] }) => {
   const isEdit = Boolean(existing);
   const [form, setForm] = useState(() => {
     if (!existing) return emptyTenderForm;
@@ -126,6 +126,7 @@ const TenderFormModal = ({ open, onClose, onSaved, existing, owners = [] }) => {
           <div>
             <label className="form-label">Issuing authority</label>
             <input type="text" className="form-input" value={form.issuingAuthority}
+              list="tender-authorities"
               onChange={(e) => set('issuingAuthority', e.target.value)} placeholder="Ministry of …" />
           </div>
           <div>
@@ -311,6 +312,11 @@ const TenderFormModal = ({ open, onClose, onSaved, existing, owners = [] }) => {
         </div>
         <datalist id="tender-owners">
           {owners.map((o) => <option key={o} value={o} />)}
+        </datalist>
+        {/* Authorities already on record, so the same ministry is not filed
+            three different ways and then fails to group in the reports. */}
+        <datalist id="tender-authorities">
+          {authorities.map((a) => <option key={a} value={a} />)}
         </datalist>
       </form>
     </Modal>

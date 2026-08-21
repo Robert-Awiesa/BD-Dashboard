@@ -85,6 +85,25 @@ const ClientRecordView = ({ clientId, onBack, currentUser, onLogInteraction, onE
     catch (err) { setError(err.message); }
   };
 
+  // A survey score logged against the wrong client skews the health trend until
+  // somebody can take it back out.
+  const removeSurvey = async (id) => {
+    if (!window.confirm('Remove this survey score?')) return;
+    try { apply(await bdApi.deleteClientSurvey(clientId, id)); }
+    catch (err) { setError(err.message); }
+  };
+
+  // Interactions drive the contact-cadence health rule, so a mistyped one has
+  // to be removable or the account reads as healthier than it is.
+  const removeInteraction = async (id) => {
+    if (!window.confirm('Delete this interaction?')) return;
+    try {
+      await bdApi.deleteInteraction(id);
+      setInteractions((prev) => prev.filter((i) => i._id !== id));
+      onChanged?.();
+    } catch (err) { setError(err.message); }
+  };
+
   const recordSurvey = async (e) => {
     e.preventDefault();
     try {
@@ -344,7 +363,17 @@ const ClientRecordView = ({ clientId, onBack, currentUser, onLogInteraction, onE
                       {i.detail && <p className="text-xs text-slate-600 mt-1.5 whitespace-pre-wrap">{i.detail}</p>}
                     </div>
                   </div>
-                  <span className="shrink-0 text-sm" title={i.sentiment}>{SENTIMENT_ICON[i.sentiment]}</span>
+                  <div className="shrink-0 flex items-center gap-2">
+                    <span className="text-sm" title={i.sentiment}>{SENTIMENT_ICON[i.sentiment]}</span>
+                    <button
+                      type="button"
+                      onClick={() => removeInteraction(i._id)}
+                      aria-label={`Delete interaction: ${i.summary}`}
+                      className="text-slate-300 hover:text-red-600 cursor-pointer text-xs"
+                    >
+                      ✕
+                    </button>
+                  </div>
                 </div>
               </div>
             ))
@@ -480,7 +509,17 @@ const ClientRecordView = ({ clientId, onBack, currentUser, onLogInteraction, onE
                           </span>
                         )}
                       </div>
-                      <span className="text-xs text-slate-500">{formatDate(s.collectedAt)}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-slate-500">{formatDate(s.collectedAt)}</span>
+                        <button
+                          type="button"
+                          onClick={() => removeSurvey(s._id)}
+                          aria-label={`Remove survey scored ${s.score}`}
+                          className="text-slate-300 hover:text-red-600 cursor-pointer text-xs"
+                        >
+                          ✕
+                        </button>
+                      </div>
                     </div>
                     {s.comment && <p className="text-sm text-slate-700 italic mt-1">“{s.comment}”</p>}
                     {(s.respondent || s.collectedBy) && (

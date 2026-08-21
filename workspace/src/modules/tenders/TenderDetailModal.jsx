@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { bdApi } from '../../context/services/api';
 import Modal from '../../components/common/Modal';
 import Button from '../../components/common/Button';
@@ -14,6 +14,7 @@ const TABS = [
   { id: 'overview', label: 'Overview' },
   { id: 'pdp', label: 'PDP' },
   { id: 'fdp', label: 'FDP' },
+  { id: 'proposals', label: 'Proposals' },
 ];
 
 const MetaRow = ({ label, children }) => (
@@ -58,6 +59,16 @@ const TenderDetailModal = ({ open, onClose, tender, onEdit, onDelete, onChanged 
   };
 
   const [tab, setTab] = useState('overview');
+  const [linkedProposals, setLinkedProposals] = useState([]);
+
+  useEffect(() => {
+    let ignore = false;
+    if (tab !== 'proposals' || !tender?._id) return undefined;
+    bdApi.getTenderProposals(tender._id)
+      .then((rows) => { if (!ignore) setLinkedProposals(rows); })
+      .catch((err) => { if (!ignore) setActionError(err.message); });
+    return () => { ignore = true; };
+  }, [tab, tender?._id]);
   const [showFdp, setShowFdp] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
@@ -265,6 +276,34 @@ const TenderDetailModal = ({ open, onClose, tender, onEdit, onDelete, onChanged 
         )}
 
         {/* FDP — hidden until the user opens it */}
+        {tab === 'proposals' && (
+          <div className="space-y-2">
+            <p className="text-xs text-slate-500">
+              Proposals written against this tender. They live in the Proposals
+              module — this reads them through, so the stage shown is always current.
+            </p>
+            {linkedProposals.length === 0 ? (
+              <p className="text-xs text-slate-400 py-4 text-center">
+                No proposal has been linked to this tender yet.
+              </p>
+            ) : (
+              linkedProposals.map((pr) => (
+                <div key={pr._id} className="rounded-lg border border-slate-200 px-3 py-2">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-sm font-medium text-navy-900 min-w-0 truncate">{pr.title}</span>
+                    <Badge label={pr.stage} status={STATUS_BADGE[pr.stage] || 'active'} />
+                  </div>
+                  <p className="text-[11px] text-slate-500 mt-0.5">
+                    {pr.owner || 'Unassigned'}
+                    {pr.value ? ` · ${formatMoney(pr.value, pr.currency)}` : ''}
+                    {pr.dueDate ? ` · due ${formatDate(pr.dueDate)}` : ''}
+                  </p>
+                </div>
+              ))
+            )}
+          </div>
+        )}
+
         {tab === 'fdp' && (
           <div className="space-y-3">
             {!showFdp ? (

@@ -33,6 +33,8 @@ const ContentRepositoryView = ({
   const [status, setStatus] = useState('');
   const [sector, setSector] = useState('');
   const [objection, setObjection] = useState('');
+  const [author, setAuthor] = useState('');
+  const [authors, setAuthors] = useState([]);
   const [sort, setSort] = useState('recent');
   const [includeArchived, setIncludeArchived] = useState(false);
 
@@ -51,21 +53,24 @@ const ContentRepositoryView = ({
         status,
         categorySector: sector,
         objectionCategory: objection,
+        author,
         sort,
         includeArchived: includeArchived ? 'true' : '',
       }),
       bdApi.getContentTags(contentType),
+      bdApi.getContentAuthors(),
     ])
-      .then(([list, tagList]) => {
+      .then(([list, tagList, authorList]) => {
         if (ignore) return;
         setItems(list);
         setTags(tagList);
+        setAuthors(authorList);
         setError(null);
       })
       .catch((err) => { if (!ignore) setError(err.message); })
       .finally(() => { if (!ignore) setLoading(false); });
     return () => { ignore = true; };
-  }, [contentType, debouncedSearch, activeTag, status, sector, objection, sort, includeArchived, refreshToken]);
+  }, [contentType, debouncedSearch, activeTag, status, sector, objection, author, sort, includeArchived, refreshToken]);
 
   const handleCopy = async (item) => {
     await onCopy(item);
@@ -85,11 +90,11 @@ const ContentRepositoryView = ({
 
   const resetFilters = () => {
     setSearch(''); setActiveTag(''); setStatus('');
-    setSector(''); setObjection(''); setSort('recent'); setIncludeArchived(false);
+    setSector(''); setObjection(''); setAuthor(''); setSort('recent'); setIncludeArchived(false);
   };
 
   const filtersActive = Boolean(
-    search || activeTag || status || sector || objection || includeArchived || sort !== 'recent'
+    search || activeTag || status || sector || objection || author || includeArchived || sort !== 'recent'
   );
 
   // Sector matters for Articles and User Stories; objection type only for FAQs.
@@ -137,6 +142,10 @@ const ContentRepositoryView = ({
           <select value={status} onChange={(e) => setStatus(e.target.value)} className="form-input text-sm">
             <option value="">Any status</option>
             {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+          </select>
+          <select value={author} onChange={(e) => setAuthor(e.target.value)} className="form-input text-sm">
+            <option value="">Any author</option>
+            {authors.map((a) => <option key={a} value={a}>{a}</option>)}
           </select>
           {showSector && (
             <select value={sector} onChange={(e) => setSector(e.target.value)} className="form-input text-sm">

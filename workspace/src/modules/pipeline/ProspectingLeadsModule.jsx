@@ -18,6 +18,7 @@ const ProspectingLeadsModule = () => {
   const [error, setError] = useState(null);
 
   const [showModal, setShowModal] = useState(false);
+  const [editingLead, setEditingLead] = useState(null);
   const [submitting, setSubmitting] = useState(false);
 
   const [selectedLead, setSelectedLead] = useState(null);
@@ -57,8 +58,15 @@ const ProspectingLeadsModule = () => {
     try {
       const payload = { ...form };
       if (payload.industry !== 'Others') payload.customIndustry = '';
-      const newLead = await bdApi.addProspectingLead(payload);
-      setLeads((prev) => [newLead, ...prev]);
+      if (editingLead) {
+        const saved = await bdApi.updateProspectingLead(editingLead._id, payload);
+        setLeads((prev) => prev.map((l) => (l._id === saved._id ? saved : l)));
+        setSelectedLead((cur) => (cur && cur._id === saved._id ? saved : cur));
+        setEditingLead(null);
+      } else {
+        const newLead = await bdApi.addProspectingLead(payload);
+        setLeads((prev) => [newLead, ...prev]);
+      }
       setShowModal(false);
     } finally {
       setSubmitting(false);
@@ -170,11 +178,13 @@ const ProspectingLeadsModule = () => {
       )}
 
       <ProspectingModal
+        key={editingLead?._id || 'new'}
         open={showModal}
-        onClose={() => setShowModal(false)}
+        onClose={() => { setShowModal(false); setEditingLead(null); }}
         onSubmitManual={handleSubmitManual}
         onSubmitBulk={handleSubmitBulk}
         submitting={submitting}
+        editing={editingLead}
       />
 
       <Modal open={!!selectedLead} onClose={() => setSelectedLead(null)} title={selectedLead?.company}>
@@ -253,9 +263,15 @@ const ProspectingLeadsModule = () => {
               </div>
             )}
 
-            <div className="flex justify-end pt-2 border-t border-slate-200">
+            <div className="flex justify-end gap-2 pt-2 border-t border-slate-200">
               <Button variant="danger" onClick={() => handleDelete(selectedLead._id)}>
                 🗑️ Delete Lead
+              </Button>
+              <Button
+                variant="primary"
+                onClick={() => { setEditingLead(selectedLead); setShowModal(true); }}
+              >
+                ✎ Edit Lead
               </Button>
             </div>
           </div>

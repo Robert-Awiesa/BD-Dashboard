@@ -471,6 +471,50 @@ export const bdApi = {
     return handleResponse(response);
   },
 
+  async getOutreachCampaign(id) {
+    const response = await fetch(`${API_BASE_URL}/outreach/${id}`);
+    return handleResponse(response);
+  },
+
+  async setOutreachCampaignArchived(id, archived) {
+    const response = await fetch(`${API_BASE_URL}/outreach/${id}/archive`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ archived }),
+    });
+    return handleResponse(response);
+  },
+
+  async deleteOutreachCampaign(id) {
+    const response = await fetch(`${API_BASE_URL}/outreach/${id}`, { method: 'DELETE' });
+    return handleResponse(response);
+  },
+
+  async deleteOutreachRecipient(recipientId) {
+    const response = await fetch(`${API_BASE_URL}/outreach/recipients/${recipientId}`, {
+      method: 'DELETE',
+    });
+    return handleResponse(response);
+  },
+
+  // Pull recipients straight from Prospecting Leads / Client contacts instead of
+  // exporting to a spreadsheet and re-importing it.
+  async importOutreachRecipients(campaignId, { leadIds = [], clientIds = [] }) {
+    const response = await fetch(`${API_BASE_URL}/outreach/${campaignId}/recipients/import`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ leadIds, clientIds }),
+    });
+    return handleResponse(response);
+  },
+
+  async deleteOutreachBatch(campaignId, batchId) {
+    const response = await fetch(`${API_BASE_URL}/outreach/${campaignId}/batches/${batchId}`, {
+      method: 'DELETE',
+    });
+    return handleResponse(response);
+  },
+
   async getOutreachRecipients(campaignId, filters = {}) {
     const params = new URLSearchParams(
       Object.entries(filters).filter(([, v]) => v !== '' && v !== null && v !== undefined)

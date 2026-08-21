@@ -460,7 +460,20 @@ const ProposalDetailModal = ({ open, onClose, proposal, onChanged, onEdit, onDel
                 <div key={f._id} className="rounded-lg border border-slate-200 px-3 py-2">
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-sm text-navy-900">{f.note}</span>
-                    <span className="text-[11px] text-slate-500 shrink-0">{formatDate(f.date)}</span>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="text-[11px] text-slate-500">{formatDate(f.date)}</span>
+                      <button
+                        onClick={async () => {
+                          try {
+                            apply(await bdApi.deleteProposalFollowUp(proposal._id, f._id));
+                          } catch (err) { setError(err.message); }
+                        }}
+                        aria-label={`Delete follow-up: ${f.note}`}
+                        className="text-xs text-slate-400 hover:text-red-700 cursor-pointer"
+                      >
+                        &times;
+                      </button>
+                    </div>
                   </div>
                   {f.response && <p className="text-xs text-slate-600 mt-0.5 italic">“{f.response}”</p>}
                   {f.by && <p className="text-[11px] text-slate-400 mt-0.5">{f.by}</p>}
