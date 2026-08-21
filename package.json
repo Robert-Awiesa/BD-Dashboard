@@ -4,7 +4,7 @@
   "private": true,
   "description": "BD Workspace Dashboard - Express API + Vite frontend. Backend dependencies are declared here as well as in Server/ because Vercel installs from the root manifest.",
   "scripts": {
-    "build": "cd Server && npm install && cd ../workspace && npm install && npm run build && rm -rf ../Server/dist && cp -r dist ../Server/dist",
+    "build": "cd Server && npm install --include=dev && cd ../workspace && npm install --include=dev && npm run build && rm -rf ../Server/dist && cp -r dist ../Server/dist",
     "start": "cd Server && npm start"
   },
   "dependencies": {
@@ -16,6 +16,6 @@
     "node-cron": "^4.6.0"
   },
   "engines": {
-    "node": ">=20"
+    "node": "22.x"
   }
 }
