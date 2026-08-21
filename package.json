@@ -2,9 +2,17 @@
   "name": "bd-dashboard",
   "version": "1.0.0",
   "private": true,
-  "description": "BD Workspace Dashboard — Express API + Vite frontend, deployed as one Render web service.",
+  "description": "BD Workspace Dashboard - Express API + Vite frontend. Backend dependencies are declared here as well as in Server/ because Vercel installs from the root manifest.",
   "scripts": {
     "build": "cd Server && npm install && cd ../workspace && npm install && npm run build && cp -r dist ../Server/dist",
     "start": "cd Server && npm start"
+  },
+  "dependencies": {
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "mongoose": "^9.9.2",
+    "multer": "^2.2.0",
+    "node-cron": "^4.6.0"
   }
 }
