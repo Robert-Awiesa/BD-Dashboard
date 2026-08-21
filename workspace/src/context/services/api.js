@@ -54,10 +54,15 @@ export const bdApi = {
   },
 
   // Tenders & EOI endpoints
-  async getTenders() {
-    const response = await fetch(`${API_BASE_URL}/tenders`);
+  async getTenders(filters = {}) {
+    const params = new URLSearchParams(
+      Object.entries(filters).filter(([, v]) => v !== '' && v !== null && v !== undefined)
+    );
+    const query = params.toString();
+    const response = await fetch(`${API_BASE_URL}/tenders${query ? `?${query}` : ''}`);
     return handleResponse(response);
   },
+
 
   async addTender(tenderData) {
     const response = await fetch(`${API_BASE_URL}/tenders`, {
@@ -85,10 +90,15 @@ export const bdApi = {
   },
 
   // Expression of Interest endpoints
-  async getEois() {
-    const response = await fetch(`${API_BASE_URL}/eois`);
+  async getEois(filters = {}) {
+    const params = new URLSearchParams(
+      Object.entries(filters).filter(([, v]) => v !== '' && v !== null && v !== undefined)
+    );
+    const query = params.toString();
+    const response = await fetch(`${API_BASE_URL}/eois${query ? `?${query}` : ''}`);
     return handleResponse(response);
   },
+
 
   async addEoi(eoiData) {
     const response = await fetch(`${API_BASE_URL}/eois`, {
@@ -126,6 +136,99 @@ export const bdApi = {
     });
     return handleResponse(response);
   },
+
+
+  // --- Tenders & EOI: deadline intelligence and the decision trail ---
+
+  async getTenderMeta() {
+    const response = await fetch(`${API_BASE_URL}/tenders/meta`);
+    return handleResponse(response);
+  },
+
+  async getTenderStats() {
+    const response = await fetch(`${API_BASE_URL}/tenders/stats`);
+    return handleResponse(response);
+  },
+
+  // One list across tenders AND EOIs, soonest first.
+  async getDeadlineRunway(withinDays = 60) {
+    const response = await fetch(`${API_BASE_URL}/tenders/runway?withinDays=${withinDays}`);
+    return handleResponse(response);
+  },
+
+  async getTenderOwners() {
+    const response = await fetch(`${API_BASE_URL}/tenders/owners`);
+    return handleResponse(response);
+  },
+
+  async getIssuingAuthorities() {
+    const response = await fetch(`${API_BASE_URL}/tenders/authorities`);
+    return handleResponse(response);
+  },
+
+  async getTender(id) {
+    const response = await fetch(`${API_BASE_URL}/tenders/${id}`);
+    return handleResponse(response);
+  },
+
+  // The bid that answered this tender, read through from Proposals.
+  async getTenderProposals(id) {
+    const response = await fetch(`${API_BASE_URL}/tenders/${id}/proposals`);
+    return handleResponse(response);
+  },
+
+  async setTenderMilestoneDone(tenderId, milestoneId, done) {
+    const response = await fetch(`${API_BASE_URL}/tenders/${tenderId}/milestones/${milestoneId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ done }),
+    });
+    return handleResponse(response);
+  },
+
+  async setTenderArchived(id, archived) {
+    const response = await fetch(`${API_BASE_URL}/tenders/${id}/archive`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ archived }),
+    });
+    return handleResponse(response);
+  },
+
+  async getEoi(id) {
+    const response = await fetch(`${API_BASE_URL}/eois/${id}`);
+    return handleResponse(response);
+  },
+
+  // Bid / no-bid. A Pass must carry a reason.
+  async setEoiDecision(id, payload) {
+    const response = await fetch(`${API_BASE_URL}/eois/${id}/decision`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    return handleResponse(response);
+  },
+
+  // Promote an EOI into a full tender, carrying its details over.
+  async convertEoiToTender(id, overrides = {}) {
+    const response = await fetch(`${API_BASE_URL}/eois/${id}/convert`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(overrides),
+    });
+    return handleResponse(response);
+  },
+
+  async setEoiArchived(id, archived) {
+    const response = await fetch(`${API_BASE_URL}/eois/${id}/archive`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ archived }),
+    });
+    return handleResponse(response);
+  },
+
 
   // Prospecting Leads endpoints
   async getProspectingLeads() {

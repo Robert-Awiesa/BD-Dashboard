@@ -20,7 +20,7 @@ const Section = ({ title, hint, children }) => (
   </fieldset>
 );
 
-const TenderFormModal = ({ open, onClose, onSaved, existing }) => {
+const TenderFormModal = ({ open, onClose, onSaved, existing, owners = [] }) => {
   const isEdit = Boolean(existing);
   const [form, setForm] = useState(() => {
     if (!existing) return emptyTenderForm;
@@ -129,6 +129,19 @@ const TenderFormModal = ({ open, onClose, onSaved, existing }) => {
               onChange={(e) => set('issuingAuthority', e.target.value)} placeholder="Ministry of …" />
           </div>
           <div>
+            <label className="form-label">Owner</label>
+            <input type="text" list="tender-owners" className="form-input" value={form.owner}
+              onChange={(e) => set('owner', e.target.value)} placeholder="Who is accountable" />
+            <p className="text-xs text-slate-500 mt-1">
+              Deadline reminders are addressed to this person.
+            </p>
+          </div>
+          <div>
+            <label className="form-label">Sector</label>
+            <input type="text" className="form-input" value={form.sector}
+              onChange={(e) => set('sector', e.target.value)} placeholder="Healthcare, Logistics…" />
+          </div>
+          <div>
             <label className="form-label">Tender type</label>
             <select className="form-input" value={form.tenderType} onChange={(e) => set('tenderType', e.target.value)}>
               {TENDER_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
@@ -163,6 +176,11 @@ const TenderFormModal = ({ open, onClose, onSaved, existing }) => {
             <label className="form-label">Estimated value</label>
             <input type="number" min="0" className="form-input" value={form.estimatedValue}
               onChange={(e) => set('estimatedValue', e.target.value)} placeholder="0" />
+          </div>
+          <div>
+            <label className="form-label">Currency</label>
+            <input type="text" className="form-input" value={form.currency}
+              onChange={(e) => set('currency', e.target.value)} placeholder="GHS" />
           </div>
         </div>
 
@@ -291,6 +309,9 @@ const TenderFormModal = ({ open, onClose, onSaved, existing }) => {
           <textarea className="form-input" rows="2" value={form.notes}
             onChange={(e) => set('notes', e.target.value)} placeholder="Anything else worth remembering" />
         </div>
+        <datalist id="tender-owners">
+          {owners.map((o) => <option key={o} value={o} />)}
+        </datalist>
       </form>
     </Modal>
   );

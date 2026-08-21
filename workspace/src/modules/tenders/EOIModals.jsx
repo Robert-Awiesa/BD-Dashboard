@@ -1,8 +1,8 @@
 import { useState, useRef } from 'react';
+import { bdApi } from '../../context/services/api';
 import Modal from '../../components/common/Modal';
 import Button from '../../components/common/Button';
 import Badge from '../../components/common/Badge';
-import { bdApi } from '../../context/services/api';
 import {
   EOI_STATUSES,
   SOURCES,
@@ -25,7 +25,7 @@ const MetaRow = ({ label, children }) => (
 // EOI FORM
 // ====================
 
-const EoiFormModal = ({ open, onClose, onSaved, existing }) => {
+const EoiFormModal = ({ open, onClose, onSaved, existing, owners = [] }) => {
   const isEdit = Boolean(existing);
   const [form, setForm] = useState(() => (existing ? { ...emptyEoiForm, ...existing } : emptyEoiForm));
   const [mode, setMode] = useState(existing?.attachmentType === 'upload' ? 'upload' : 'link');
@@ -111,6 +111,14 @@ const EoiFormModal = ({ open, onClose, onSaved, existing }) => {
               onChange={(e) => set('issuingAuthority', e.target.value)} placeholder="Who issued it" />
           </div>
           <div>
+            <label className="form-label">Owner</label>
+            <input type="text" list="eoi-owners" className="form-input" value={form.owner}
+              onChange={(e) => set('owner', e.target.value)} placeholder="Who is accountable" />
+            <datalist id="eoi-owners">
+              {owners.map((o) => <option key={o} value={o} />)}
+            </datalist>
+          </div>
+          <div>
             <label className="form-label">Source</label>
             <select className="form-input" value={form.source} onChange={(e) => set('source', e.target.value)}>
               <option value="">Select…</option>
@@ -179,7 +187,50 @@ const EoiFormModal = ({ open, onClose, onSaved, existing }) => {
 // EOI DETAIL
 // ====================
 
-const EoiDetailModal = ({ open, onClose, eoi, onEdit, onDelete }) => {
+const EoiDetailModal = ({ open, onClose, eoi, onEdit, onDelete, onChanged, onConverted }) => {
+  const [decision, setDecision] = useState('');
+  const [reason, setReason] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [actionError, setActionError] = useState(null);
+
+  // Recording the call is the whole point of this list. A Pass without a reason
+  // is refused by the API, so the reason box appears the moment Pass is picked.
+  const saveDecision = async (value) => {
+    if (value === 'Pass' && !reason.trim()) {
+      setDecision('Pass');
+      setActionError('Say why we are passing — that is what stops this notice being re-argued next month.');
+      return;
+    }
+    setBusy(true);
+    setActionError(null);
+    try {
+      onChanged?.(await bdApi.setEoiDecision(eoi._id, {
+        decision: value,
+        decisionReason: value === 'Pass' ? reason : eoi.decisionReason,
+      }));
+      setDecision('');
+      setReason('');
+    } catch (err) {
+      setActionError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // Promote to a tender, carrying every detail already captured so nobody
+  // retypes a reference number or a deadline.
+  const convert = async () => {
+    setBusy(true);
+    setActionError(null);
+    try {
+      onConverted?.(await bdApi.convertEoiToTender(eoi._id, {}));
+    } catch (err) {
+      setActionError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const [confirmDelete, setConfirmDelete] = useState(false);
   if (!eoi) return null;
 
@@ -195,6 +246,11 @@ const EoiDetailModal = ({ open, onClose, eoi, onEdit, onDelete }) => {
         ) : (
           <>
             <Button variant="danger" onClick={() => setConfirmDelete(true)}>Delete</Button>
+            {!eoi.convertedToTender && eoi.decision !== 'Pass' && (
+              <Button variant="success" onClick={convert} disabled={busy}>
+                ⇪ Convert to tender
+              </Button>
+            )}
             <Button variant="primary" onClick={() => onEdit(eoi)}>✎ Edit</Button>
           </>
         )}
@@ -211,6 +267,77 @@ const EoiDetailModal = ({ open, onClose, eoi, onEdit, onDelete }) => {
       description={`${eoi.reference ? `${eoi.reference} · ` : ''}${eoi.issuingAuthority || ''}`}
       footer={footer}
     >
+      {actionError && (
+        <div className="px-3 py-2 mb-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
+          {actionError}
+        </div>
+      )}
+
+      {/* Bid / no-bid. Most notices should end here as a recorded Pass with a
+          reason, so the same one is not re-argued from scratch next month. */}
+      {!eoi.convertedToTender && (
+        <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 mb-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <p className="text-sm font-semibold text-navy-900">Do we pursue this?</p>
+              <p className="text-xs text-slate-600">
+                {eoi.decision === 'Undecided'
+                  ? 'Undecided. Recording a Pass is as useful as recording a Pursue.'
+                  : `Recorded as ${eoi.decision}${eoi.decidedBy ? ` by ${eoi.decidedBy}` : ''}.`}
+              </p>
+            </div>
+            <div className="flex gap-1.5">
+              {['Pursue', 'Pass'].map((d) => (
+                <button
+                  key={d}
+                  type="button"
+                  disabled={busy}
+                  onClick={() => (d === 'Pass' ? setDecision('Pass') : saveDecision('Pursue'))}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium border cursor-pointer transition-colors ${
+                    eoi.decision === d
+                      ? 'bg-navy-700 text-white border-navy-700'
+                      : 'bg-white text-slate-600 border-slate-300 hover:border-navy-400'
+                  }`}
+                >
+                  {d === 'Pursue' ? '✓ Pursue' : '✕ Pass'}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {decision === 'Pass' && (
+            <div className="mt-3 space-y-2">
+              <input
+                type="text"
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+                placeholder="Why are we passing? e.g. no in-house experience in this sector"
+                className="form-input"
+                autoFocus
+              />
+              <div className="flex justify-end gap-2">
+                <Button variant="secondary" onClick={() => { setDecision(''); setActionError(null); }}>
+                  Cancel
+                </Button>
+                <Button variant="primary" onClick={() => saveDecision('Pass')} disabled={busy || !reason.trim()}>
+                  Record the pass
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {eoi.decision === 'Pass' && eoi.decisionReason && decision !== 'Pass' && (
+            <p className="text-xs text-slate-600 italic mt-2">“{eoi.decisionReason}”</p>
+          )}
+        </div>
+      )}
+
+      {eoi.convertedToTender && (
+        <div className="rounded-lg border border-forest-200 bg-forest-50 px-3 py-2 mb-4 text-xs text-forest-800">
+          Converted to the tender <strong>{eoi.convertedToTender.title}</strong>
+          {eoi.convertedToTender.reference ? ` (${eoi.convertedToTender.reference})` : ''} — it is tracked on the Tenders tab now.
+        </div>
+      )}
       <div className="space-y-4">
         <div className="flex flex-wrap items-center gap-1.5">
           <Badge label={eoi.status} status={STATUS_BADGE[eoi.status] || 'default'} />

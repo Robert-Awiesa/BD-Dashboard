@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { bdApi } from '../../context/services/api';
 import Modal from '../../components/common/Modal';
 import Button from '../../components/common/Button';
 import Badge from '../../components/common/Badge';
@@ -28,7 +29,34 @@ const ProgressBar = ({ value }) => (
   </div>
 );
 
-const TenderDetailModal = ({ open, onClose, tender, onEdit, onDelete }) => {
+const TenderDetailModal = ({ open, onClose, tender, onEdit, onDelete, onChanged }) => {
+  const [busyMilestone, setBusyMilestone] = useState(null);
+  const [actionError, setActionError] = useState(null);
+
+  // Ticking a prep milestone writes straight through; PDP progress is derived
+  // from these, so the bar and the checklist can never disagree.
+  const toggleMilestone = async (milestoneId, done) => {
+    setBusyMilestone(milestoneId);
+    setActionError(null);
+    try {
+      onChanged?.(await bdApi.setTenderMilestoneDone(tender._id, milestoneId, done));
+    } catch (err) {
+      setActionError(err.message);
+    } finally {
+      setBusyMilestone(null);
+    }
+  };
+
+  const toggleArchive = async () => {
+    setActionError(null);
+    try {
+      await bdApi.setTenderArchived(tender._id, !tender.archived);
+      onChanged?.(await bdApi.getTender(tender._id));
+    } catch (err) {
+      setActionError(err.message);
+    }
+  };
+
   const [tab, setTab] = useState('overview');
   const [showFdp, setShowFdp] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -51,7 +79,12 @@ const TenderDetailModal = ({ open, onClose, tender, onEdit, onDelete }) => {
           </>
         ) : (
           <>
-            <Button variant="danger" onClick={() => setConfirmDelete(true)}>Delete</Button>
+            <Button variant="secondary" onClick={toggleArchive}>
+              {tender.archived ? '↩ Restore' : '🗄 Archive'}
+            </Button>
+            {tender.archived && (
+              <Button variant="danger" onClick={() => setConfirmDelete(true)}>Delete</Button>
+            )}
             <Button variant="primary" onClick={() => onEdit(tender)}>✎ Edit</Button>
           </>
         )}
@@ -68,6 +101,11 @@ const TenderDetailModal = ({ open, onClose, tender, onEdit, onDelete }) => {
       description={`${tender.tenderType || 'Tender'}${tender.reference ? ` · ${tender.reference}` : ''}${tender.issuingAuthority ? ` · ${tender.issuingAuthority}` : ''}`}
       footer={footer}
     >
+      {actionError && (
+        <div className="px-3 py-2 mb-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
+          {actionError}
+        </div>
+      )}
       <div className="space-y-4">
         <div className="flex flex-wrap items-center gap-1.5">
           <Badge label={tender.status} status={STATUS_BADGE[tender.status] || 'default'} />
@@ -182,14 +220,37 @@ const TenderDetailModal = ({ open, onClose, tender, onEdit, onDelete }) => {
                 <p className="text-xs text-slate-400">No milestones yet.</p>
               ) : (
                 <ul className="space-y-1.5">
-                  {pdp.milestones.map((m, i) => (
-                    <li key={i} className="flex items-center justify-between gap-3 px-3 py-2 rounded-lg border border-slate-200">
-                      <span className={`text-sm ${m.done ? 'text-slate-400 line-through' : 'text-navy-900'}`}>{m.label}</span>
-                      <span className="text-[11px] text-slate-500 shrink-0">
-                        {formatDate(m.date)}{m.done ? ' · done' : ''}
-                      </span>
-                    </li>
-                  ))}
+                  {pdp.milestones.map((m) => {
+                    const overdue = !m.done && m.date && new Date(m.date) < new Date();
+                    return (
+                      <li
+                        key={m._id}
+                        className={`flex items-center justify-between gap-3 px-3 py-2 rounded-lg border ${
+                          overdue ? 'border-red-200 bg-red-50' : 'border-slate-200'
+                        }`}
+                      >
+                        <label className="flex items-center gap-2.5 cursor-pointer min-w-0">
+                          <input
+                            type="checkbox"
+                            checked={Boolean(m.done)}
+                            disabled={busyMilestone === m._id}
+                            onChange={() => toggleMilestone(m._id, !m.done)}
+                            className="accent-forest-600 cursor-pointer shrink-0"
+                            aria-label={`Mark "${m.label}" ${m.done ? 'not done' : 'done'}`}
+                          />
+                          <span className="min-w-0">
+                            <span className={`block text-sm truncate ${m.done ? 'text-slate-400 line-through' : 'text-navy-900'}`}>
+                              {m.label}
+                            </span>
+                            {m.owner && <span className="block text-[11px] text-slate-500">{m.owner}</span>}
+                          </span>
+                        </label>
+                        <span className={`text-[11px] shrink-0 ${overdue ? 'text-red-700 font-medium' : 'text-slate-500'}`}>
+                          {formatDate(m.date)}{overdue ? ' · overdue' : ''}
+                        </span>
+                      </li>
+                    );
+                  })}
                 </ul>
               )}
             </div>

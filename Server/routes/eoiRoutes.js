@@ -1,53 +1,84 @@
 const express = require('express');
 const router = express.Router();
-const bdService = require('../services/bdService');
+const tenderService = require('../services/tenderService');
 const { uploadEoi, EOI_MAX_BYTES } = require('../middleware/upload');
 
-// GET all EOIs
 router.get('/', async (req, res) => {
   try {
-    res.json(await bdService.getAllEois());
+    res.json(await tenderService.getAllEois(req.query));
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 });
 
-// POST a new EOI (JSON only — no attachment yet)
+router.get('/:id', async (req, res) => {
+  try {
+    res.json(await tenderService.getEoiById(req.params.id));
+  } catch (error) {
+    res.status(404).json({ message: error.message });
+  }
+});
+
 router.post('/', async (req, res) => {
   try {
-    const saved = await bdService.createEoi(req.body);
-    res.status(201).json(saved);
+    res.status(201).json(await tenderService.createEoi(req.body));
   } catch (error) {
     res.status(400).json({ message: error.message });
   }
 });
 
-// PUT update an EOI
 router.put('/:id', async (req, res) => {
   try {
-    const updated = await bdService.updateEoi(req.params.id, req.body);
-    res.json(updated);
+    res.json(await tenderService.updateEoi(req.params.id, req.body));
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+});
+
+// Bid / no-bid. A Pass must carry a reason — that is the whole value of
+// recording it, so the same notice is not re-argued next month.
+router.patch('/:id/decision', async (req, res) => {
+  try {
+    res.json(await tenderService.setEoiDecision(req.params.id, req.body));
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+});
+
+// Promote an EOI into a full tender, carrying everything already captured so
+// nobody retypes a reference number or a deadline.
+router.post('/:id/convert', async (req, res) => {
+  try {
+    res.status(201).json(await tenderService.convertEoiToTender(req.params.id, req.body));
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+});
+
+router.patch('/:id/archive', async (req, res) => {
+  try {
+    res.json(await tenderService.setEoiArchived(req.params.id, req.body.archived !== false));
   } catch (error) {
     res.status(404).json({ message: error.message });
   }
 });
 
-// DELETE an EOI
 router.delete('/:id', async (req, res) => {
   try {
-    const deleted = await bdService.deleteEoi(req.params.id);
+    const deleted = await tenderService.deleteEoi(req.params.id);
     res.json({ message: 'EOI deleted', item: deleted });
   } catch (error) {
-    res.status(404).json({ message: error.message });
+    const status = error.message === 'EOI not found' ? 404 : 409;
+    res.status(status).json({ message: error.message });
   }
 });
 
-// Upload an EOI attachment (image or PDF) and attach it to the record.
+// Upload an attachment (image or PDF) and attach it to the record.
 // `attachmentType` is fixed to 'upload'; a pasted link is saved via PUT instead.
 router.post('/:id/attachment', uploadEoi.single('attachment'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ message: 'No file uploaded' });
-    const updated = await bdService.updateEoi(req.params.id, {
+    const updated = await tenderService.updateEoi(req.params.id, {
       attachmentType: 'upload',
       attachmentUrl: `/uploads/eois/${req.file.filename}`,
       attachmentFileName: req.file.originalname,

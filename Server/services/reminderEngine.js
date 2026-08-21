@@ -6,6 +6,8 @@ const DocumentModel = require('../models/Document');
 const Client = require('../models/Client');
 const Interaction = require('../models/Interaction');
 const OutreachCampaign = require('../models/OutreachCampaign');
+const Tender = require('../models/Tender');
+const Eoi = require('../models/Eoi');
 const Proposal = require('../models/Proposal');
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
@@ -459,6 +461,115 @@ async function evaluateOutreach(today, todayKey, results) {
   }
 }
 
+
+// --- Tenders & EOIs: the deadlines that cost real money when missed ---
+// Until now this was the ONLY module built around hard external deadlines that
+// never fed the reminder queue. A tender deadline is immovable — miss it and
+// the opportunity is simply gone — so it gets a fixed countdown rather than the
+// gentler weekly cadence used for internal housekeeping.
+const TENDER_COUNTDOWN_DAYS = [30, 14, 7, 3, 2, 1, 0];
+
+async function evaluateTenders(today, todayKey, results) {
+  const tenders = await Tender.find({ archived: { $ne: true } });
+
+  for (const tender of tenders) {
+    // Submitted, won, lost, no-bid: the clock stops mattering.
+    if (tender.isClosed || tender.isSubmitted) continue;
+
+    const notes = [];
+    let severity = 'upcoming';
+
+    const days = tender.daysToDeadline;
+    if (days !== null) {
+      if (days >= 0 && TENDER_COUNTDOWN_DAYS.includes(days)) {
+        notes.push(days === 0
+          ? 'the deadline is TODAY'
+          : `the deadline is in ${days} day(s) (${toDateKey(dateOnly(tender.deadline))})`);
+        if (days === 0) severity = 'today';
+      } else if (days < 0) {
+        // Missed. Keep saying so weekly until somebody closes it out as
+        // No Bid or Withdrawn, because a silently missed tender is the exact
+        // failure this module exists to prevent.
+        const lapsed = -days;
+        if (lapsed === 1 || lapsed % 7 === 0) {
+          notes.push(`the deadline passed ${lapsed} day(s) ago and it is still "${tender.status}" — submit, or close it as No Bid`);
+          severity = 'overdue';
+        }
+      }
+    }
+
+    // Preparation milestones due before the bid goes in.
+    for (const milestone of tender.pdp?.milestones || []) {
+      if (milestone.done || !milestone.date) continue;
+      const due = dateOnly(milestone.date);
+      const toDue = daysBetween(today, due);
+      if (toDue === 0) {
+        notes.push(`prep milestone "${milestone.label}" is due today`);
+        if (severity !== 'overdue') severity = 'today';
+      } else if (toDue > 0 && toDue <= REMINDER_LEAD_DAYS) {
+        notes.push(`prep milestone "${milestone.label}" is due in ${toDue} day(s)`);
+      } else if (toDue < 0 && (-toDue) % 7 === 0) {
+        notes.push(`prep milestone "${milestone.label}" is ${-toDue} day(s) overdue`);
+        severity = 'overdue';
+      }
+    }
+
+    if (notes.length === 0) continue;
+
+    results.push(await upsertReminder({
+      sourceType: 'Tender',
+      sourceId: tender._id,
+      sourceLabel: tender.title,
+      reminderDate: todayKey,
+      reminderType: severity,
+      message: `${tender.title}${tender.issuingAuthority ? ` (${tender.issuingAuthority})` : ''} — ${notes.join('; ')}.`,
+      responsiblePerson: tender.owner,
+    }));
+  }
+}
+
+// --- EOIs: an undecided notice with the clock running out ---
+async function evaluateEois(today, todayKey, results) {
+  const eois = await Eoi.find({ archived: { $ne: true } });
+
+  for (const eoi of eois) {
+    // Converted, passed on, or closed: already decided.
+    if (eoi.convertedToTender || eoi.decision === 'Pass' || eoi.status === 'Closed') continue;
+
+    const days = eoi.daysToDeadline;
+    if (days === null) continue;
+
+    let reminderType = null;
+    let message = null;
+
+    if (days >= 0 && TENDER_COUNTDOWN_DAYS.includes(days)) {
+      reminderType = days === 0 ? 'today' : 'upcoming';
+      const when = days === 0 ? 'closes TODAY' : `closes in ${days} day(s)`;
+      message = eoi.decision === 'Undecided'
+        ? `EOI "${eoi.title}" ${when} and nobody has decided whether to pursue it.`
+        : `EOI "${eoi.title}" ${when}.`;
+    } else if (days < 0) {
+      const lapsed = -days;
+      if (lapsed === 1 || lapsed % 7 === 0) {
+        reminderType = 'overdue';
+        message = `EOI "${eoi.title}" closed ${lapsed} day(s) ago while still undecided. Record a Pass with a reason, or archive it.`;
+      }
+    }
+
+    if (!reminderType) continue;
+
+    results.push(await upsertReminder({
+      sourceType: 'Eoi',
+      sourceId: eoi._id,
+      sourceLabel: eoi.title,
+      reminderDate: todayKey,
+      reminderType,
+      message,
+      responsiblePerson: eoi.owner,
+    }));
+  }
+}
+
 // Safe to call repeatedly — the unique (sourceType, sourceId, reminderDate)
 // index makes each source produce at most one reminder per day.
 async function evaluateReminders() {
@@ -474,6 +585,8 @@ async function evaluateReminders() {
   await evaluateFieldVisits(today, todayKey, results);
   await evaluateProposals(today, todayKey, results);
   await evaluateOutreach(today, todayKey, results);
+  await evaluateTenders(today, todayKey, results);
+  await evaluateEois(today, todayKey, results);
 
   return results;
 }

@@ -1,44 +1,125 @@
 const express = require('express');
 const router = express.Router();
-const bdService = require('../services/bdService');
+const tenderService = require('../services/tenderService');
+const Tender = require('../models/Tender');
+const Eoi = require('../models/Eoi');
 
-// GET all tenders
-router.get('/', async (req, res) => {
+// Enum manifest, so the forms cannot drift from the schema.
+router.get('/meta', (req, res) => {
+  res.json({
+    tenderTypes: Tender.TENDER_TYPES,
+    tenderStatuses: Tender.TENDER_STATUSES,
+    closedStatuses: Tender.CLOSED_STATUSES,
+    submittedStatuses: Tender.SUBMITTED_STATUSES,
+    sources: Tender.SOURCES,
+    eoiStatuses: Eoi.EOI_STATUSES,
+    decisions: Eoi.DECISIONS,
+    closingSoonDays: Tender.CLOSING_SOON_DAYS,
+  });
+});
+
+router.get('/stats', async (req, res) => {
   try {
-    const tenders = await bdService.getAllTenders();
-    res.json(tenders);
+    res.json(await tenderService.getTenderStats());
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 });
 
-// POST a new tender
+// One list across tenders AND EOIs, soonest first — a deadline does not care
+// which tab it lives on.
+router.get('/runway', async (req, res) => {
+  try {
+    res.json(await tenderService.getDeadlineRunway(Number(req.query.withinDays) || 60));
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+router.get('/owners', async (req, res) => {
+  try {
+    res.json(await tenderService.getTenderOwners());
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+router.get('/authorities', async (req, res) => {
+  try {
+    res.json(await tenderService.getIssuingAuthorities());
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+router.get('/', async (req, res) => {
+  try {
+    res.json(await tenderService.getAllTenders(req.query));
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+router.get('/:id', async (req, res) => {
+  try {
+    res.json(await tenderService.getTenderById(req.params.id));
+  } catch (error) {
+    res.status(404).json({ message: error.message });
+  }
+});
+
+// The bid that answered this tender, read through from Proposals rather than
+// duplicated here.
+router.get('/:id/proposals', async (req, res) => {
+  try {
+    res.json(await tenderService.getLinkedProposals(req.params.id));
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
 router.post('/', async (req, res) => {
   try {
-    const savedTender = await bdService.createTender(req.body);
-    res.status(201).json(savedTender);
+    res.status(201).json(await tenderService.createTender(req.body));
   } catch (error) {
     res.status(400).json({ message: error.message });
   }
 });
 
-// PUT update a tender
 router.put('/:id', async (req, res) => {
   try {
-    const updated = await bdService.updateTender(req.params.id, req.body);
-    res.json(updated);
+    res.json(await tenderService.updateTender(req.params.id, req.body));
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+});
+
+router.patch('/:id/milestones/:milestoneId', async (req, res) => {
+  try {
+    res.json(await tenderService.setMilestoneDone(
+      req.params.id, req.params.milestoneId, req.body.done !== false
+    ));
   } catch (error) {
     res.status(404).json({ message: error.message });
   }
 });
 
-// DELETE a tender
-router.delete('/:id', async (req, res) => {
+router.patch('/:id/archive', async (req, res) => {
   try {
-    const deleted = await bdService.deleteTender(req.params.id);
-    res.json({ message: 'Tender deleted', item: deleted });
+    res.json(await tenderService.setTenderArchived(req.params.id, req.body.archived !== false));
   } catch (error) {
     res.status(404).json({ message: error.message });
+  }
+});
+
+router.delete('/:id', async (req, res) => {
+  try {
+    const deleted = await tenderService.deleteTender(req.params.id);
+    res.json({ message: 'Tender deleted', item: deleted });
+  } catch (error) {
+    // "Archive it first" is a refused precondition, not a missing record.
+    const status = error.message === 'Tender not found' ? 404 : 409;
+    res.status(status).json({ message: error.message });
   }
 });
 

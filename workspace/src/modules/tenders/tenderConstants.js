@@ -1,33 +1,80 @@
 // Tenders & EOI vocabulary. Mirrors the enums in Server/models/Tender.js and
-// Server/models/Eoi.js. The forms and badges read from here so they never drift
-// from the Mongoose schema.
+// Server/models/Eoi.js — which now actually enforce them, so a value that is
+// not here will be rejected by the API rather than quietly stored.
 
-export const TENDER_TYPES = ['Stage One', 'Stage Two', 'Single Stage'];
+export const TENDER_TYPES = ['Stage One', 'Stage Two', 'Single Stage', 'Framework'];
 
-export const TENDER_STATUSES = ['Open', 'In Progress', 'Submitted', 'Won', 'Lost'];
+export const TENDER_STATUSES = [
+  'Open', 'In Progress', 'Submitted', 'Won', 'Lost', 'No Bid', 'Withdrawn',
+];
 
 export const EOI_STATUSES = ['Open', 'Submitted', 'Under Review', 'Closed'];
 
-export const SOURCES = ['Newspaper', 'Website', 'WhatsApp', 'Meeting', 'Email', 'Other'];
+export const DECISIONS = ['Undecided', 'Pursue', 'Pass'];
 
-// Badge tone per status, shared by both tabs.
+export const SOURCES = ['Newspaper', 'Website', 'WhatsApp', 'Meeting', 'Email', 'Referral', 'Other'];
+
+// The human decision.
 export const STATUS_BADGE = {
   Open: 'active',
   'In Progress': 'ongoing',
   Submitted: 'Demo',
   'Under Review': 'Negotiation',
   Won: 'success',
-  Closed: 'cold',
   Lost: 'danger',
+  'No Bid': 'cold',
+  Withdrawn: 'cold',
+  Closed: 'cold',
 };
 
-export const formatMoney = (value) => {
+// The automated tag, derived from the clock rather than typed by anyone.
+export const DEADLINE_BADGE = {
+  Overdue: 'danger',
+  'Due Today': 'danger',
+  'Closing Soon': 'ongoing',
+  Upcoming: 'active',
+  Scheduled: 'default',
+  'No Deadline': 'cold',
+  Decided: 'success',
+  Archived: 'cold',
+};
+
+export const DECISION_BADGE = {
+  Undecided: 'ongoing',
+  Pursue: 'success',
+  Pass: 'cold',
+};
+
+// The filter bar the blueprint asks for. `view` values are understood by the
+// API; `status` values filter on the stored decision.
+export const TENDER_VIEWS = [
+  { id: '', label: 'All' },
+  { id: 'open', label: 'Live' },
+  { id: 'closing', label: 'Closing soon' },
+  { id: 'missed', label: 'Missed' },
+];
+
+export const EOI_VIEWS = [
+  { id: '', label: 'All' },
+  { id: 'awaiting', label: 'Awaiting decision' },
+];
+
+export const SORT_OPTIONS = [
+  { id: 'deadline', label: 'Deadline (soonest)' },
+  { id: 'value', label: 'Value (highest)' },
+  { id: 'status', label: 'Status' },
+  { id: 'title', label: 'Title (A–Z)' },
+  { id: 'recent', label: 'Recently added' },
+];
+
+export const formatMoney = (value, currency = '') => {
   if (value === null || value === undefined || value === '') return '—';
   const n = Number(value);
   if (Number.isNaN(n) || n === 0) return '—';
-  if (Math.abs(n) >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (Math.abs(n) >= 1_000) return `${Math.round(n / 1_000)}K`;
-  return String(n);
+  const prefix = currency ? `${currency} ` : '';
+  if (Math.abs(n) >= 1_000_000) return `${prefix}${(n / 1_000_000).toFixed(1)}M`;
+  if (Math.abs(n) >= 1_000) return `${prefix}${Math.round(n / 1_000)}K`;
+  return `${prefix}${n}`;
 };
 
 export const formatDate = (value) => {
@@ -44,19 +91,33 @@ export const toDateInput = (value) => {
   return d.toISOString().slice(0, 10);
 };
 
+// Deadlines are the point of this module, so they read in human terms.
+export const deadlineLabel = (days) => {
+  if (days === null || days === undefined) return 'no deadline';
+  if (days === 0) return 'due TODAY';
+  if (days === 1) return 'tomorrow';
+  if (days === -1) return '1 day overdue';
+  if (days > 0) return `in ${days} days`;
+  return `${Math.abs(days)} days overdue`;
+};
+
 export const SOURCE_LABEL = (source, detail) =>
   source === 'Other' && detail ? `Other · ${detail}` : source || '—';
 
 export const emptyTenderForm = {
   title: '',
   reference: '',
-  source: '',
+  source: 'Other',
   sourceDetail: '',
   issuingAuthority: '',
-  tenderType: 'Stage One',
+  sector: '',
+  tenderType: 'Single Stage',
   deadline: '',
   status: 'Open',
+  owner: '',
   estimatedValue: '',
+  currency: '',
+  tags: [],
   pdp: { objectives: '', milestones: [], individuals: [], progress: 0, notes: '' },
   fdp: { currency: '', estimatedCost: '', proposedPrice: '', marginPct: '', pricingModel: '', assumptions: '', notes: '' },
   notes: '',
@@ -65,13 +126,18 @@ export const emptyTenderForm = {
 export const emptyEoiForm = {
   title: '',
   reference: '',
-  source: '',
+  source: 'Other',
   sourceDetail: '',
   issuingAuthority: '',
+  sector: '',
   deadline: '',
   status: 'Open',
+  owner: '',
+  decision: 'Undecided',
+  decisionReason: '',
   attachmentType: '',
   attachmentUrl: '',
   attachmentFileName: '',
+  tags: [],
   notes: '',
 };

@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 
 // 'Interaction' rather than 'FieldVisit' because sourceId uses refPath — the
 // value has to match a registered model name for population to resolve.
-const SOURCE_TYPES = ['Campaign', 'Event', 'Milestone', 'Document', 'Client', 'Interaction', 'Proposal', 'OutreachCampaign'];
+const SOURCE_TYPES = ['Campaign', 'Event', 'Milestone', 'Document', 'Client', 'Interaction', 'Proposal', 'OutreachCampaign', 'Tender', 'Eoi'];
 
 // One row per (source, calendar day). Polymorphic rather than one collection
 // per module, so the dashboard can render a single unified notification feed
