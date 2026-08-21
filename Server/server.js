@@ -42,6 +42,7 @@ app.get('/api/health', async (req, res) => {
     databaseError: dbError,
     hasMongoUri: Boolean(process.env.MONGODB_URI),
     serverless: Boolean(process.env.VERCEL),
+    bootErrors,
     timestamp: new Date().toISOString(),
   });
 });
@@ -64,26 +65,58 @@ app.use('/api', async (req, res, next) => {
   }
 });
 
-// Routes
-app.use('/api/pipeline', require('./routes/pipelineRoutes'));
-app.use('/api/tenders', require('./routes/tenderRoutes'));
-app.use('/api/eois', require('./routes/eoiRoutes'));
-app.use('/api/prospecting', require('./routes/prospectingRoutes'));
-app.use('/api/cold-calls', require('./routes/coldCallRoutes'));
-app.use('/api/social-content', require('./routes/socialContentRoutes'));
-app.use('/api/campaigns', require('./routes/campaignRoutes'));
-app.use('/api/events', require('./routes/eventRoutes'));
-app.use('/api/milestones', require('./routes/milestoneRoutes'));
-app.use('/api/dg-event', require('./routes/dgEventRoutes'));
-app.use('/api/reminders', require('./routes/reminderRoutes'));
-app.use('/api/media', require('./routes/mediaRoutes'));
-app.use('/api/documents', require('./routes/documentRoutes'));
-app.use('/api/content', require('./routes/contentRoutes'));
-app.use('/api/clients', require('./routes/clientRoutes'));
-app.use('/api/field-visits', require('./routes/fieldVisitRoutes'));
-app.use('/api/tasks', require('./routes/taskRoutes'));
-app.use('/api/outreach', require('./routes/outreachRoutes'));
-app.use('/api/proposals', require('./routes/proposalRoutes'));
+// Mounting is wrapped so one bad module cannot take the whole API down at
+// initialisation. Anything that fails is recorded and surfaced by /api/health,
+// which turns an opaque FUNCTION_INVOCATION_FAILED into a named culprit.
+const bootErrors = [];
+
+const mount = (routePath, modulePath) => {
+  try {
+    app.use(routePath, require(modulePath));
+  } catch (err) {
+    bootErrors.push({ route: routePath, module: modulePath, error: err.message });
+    console.error(`Failed to mount ${routePath} from ${modulePath}: ${err.stack || err.message}`);
+  }
+};
+
+mount('/api/pipeline', './routes/pipelineRoutes');
+mount('/api/tenders', './routes/tenderRoutes');
+mount('/api/eois', './routes/eoiRoutes');
+mount('/api/prospecting', './routes/prospectingRoutes');
+mount('/api/cold-calls', './routes/coldCallRoutes');
+mount('/api/social-content', './routes/socialContentRoutes');
+mount('/api/campaigns', './routes/campaignRoutes');
+mount('/api/events', './routes/eventRoutes');
+mount('/api/milestones', './routes/milestoneRoutes');
+mount('/api/dg-event', './routes/dgEventRoutes');
+mount('/api/reminders', './routes/reminderRoutes');
+mount('/api/media', './routes/mediaRoutes');
+mount('/api/documents', './routes/documentRoutes');
+mount('/api/content', './routes/contentRoutes');
+mount('/api/clients', './routes/clientRoutes');
+mount('/api/field-visits', './routes/fieldVisitRoutes');
+mount('/api/tasks', './routes/taskRoutes');
+mount('/api/outreach', './routes/outreachRoutes');
+mount('/api/proposals', './routes/proposalRoutes');
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 // Error handler
 app.use((err, req, res, next) => {
@@ -91,8 +124,11 @@ app.use((err, req, res, next) => {
   res.status(500).json({ message: 'Internal server error', error: err.message });
 });
 
-// Local dev setup
-if (process.env.NODE_ENV !== 'production') {
+// Local dev only. Binding a port inside a serverless container is never
+// correct, so check the platform flag as well as NODE_ENV rather than
+// trusting NODE_ENV alone to be set the way we expect.
+const IS_SERVERLESS = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
+if (!IS_SERVERLESS && process.env.NODE_ENV !== 'production') {
   app.listen(PORT, () => console.log(`Server listening on port ${PORT}`));
 }
 
