@@ -1,21 +1,22 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useDashboard } from '../../context/hooks/DashboardContext';
+import NavIcon from './navIcons';
 
 const NAV_ITEMS = [
-  { id: 'pipeline', label: 'Pipeline Tracker', icon: '📊' },
-  { id: 'tenders', label: 'Tenders & EOI', icon: '📑' },
-  { id: 'events', label: 'Events & Forums', icon: '🗓️' },
-  { id: 'field-visits', label: 'Field Visits', icon: '📍' },
-  { id: 'tasks', label: 'Tasks & Projects', icon: '✅' },
-  { id: 'social-media', label: 'Social Media', icon: '📱' },
-  { id: 'client-relations', label: 'Client Relations', icon: '🤝' },
-  { id: 'partners', label: 'Partners', icon: '🏢' },
-  { id: 'proposals', label: 'Proposals', icon: '📝' },
-  { id: 'training', label: 'Trainings & Certs', icon: '🎓' },
-  { id: 'reports', label: 'Reports & Docs', icon: '📈' },
-  { id: 'tools', label: 'Working Tools', icon: '🛠️' },
-  { id: 'blog', label: 'Blog & Content', icon: '📰' },
+  { id: 'pipeline', label: 'Pipeline Tracker' },
+  { id: 'tenders', label: 'Tenders & EOI' },
+  { id: 'events', label: 'Events & Forums' },
+  { id: 'field-visits', label: 'Field Visits' },
+  { id: 'tasks', label: 'Tasks & Projects' },
+  { id: 'social-media', label: 'Social Media' },
+  { id: 'client-relations', label: 'Client Relations' },
+  { id: 'partners', label: 'Partners' },
+  { id: 'proposals', label: 'Proposals' },
+  { id: 'training', label: 'Trainings & Certs' },
+  { id: 'reports', label: 'Reports & Docs' },
+  { id: 'tools', label: 'Working Tools' },
+  { id: 'blog', label: 'Blog & Content' },
 ];
 
 const CollapseIcon = ({ collapsed }) => (
@@ -177,7 +178,7 @@ const Sidebar = () => {
                     : 'text-slate-600 hover:bg-slate-50 hover:text-slate-800 border border-transparent'
                 }`}
               >
-                <span className="text-base shrink-0">{item.icon}</span>
+                <NavIcon id={item.id} className={`w-[22px] h-[22px] ${isActive ? '' : 'text-slate-400'}`} />
                 <span className={sidebarCollapsed ? 'lg:hidden' : ''}>{item.label}</span>
               </button>
             );
