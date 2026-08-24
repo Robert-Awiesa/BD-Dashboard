@@ -11,6 +11,7 @@
 // ============================================
 
 const Proposal = require('../models/Proposal');
+const lookups = require('./lookups');
 
 const normaliseList = (value) => {
   if (Array.isArray(value)) return value.map((v) => String(v).trim()).filter(Boolean);
@@ -72,15 +73,11 @@ exports.getProposalById = async (id) => {
   return proposal;
 };
 
-exports.getProposalOwners = async () => {
-  const owners = await Proposal.distinct('owner', { archived: { $ne: true } });
-  return owners.filter(Boolean).sort((a, b) => a.localeCompare(b));
-};
+exports.getProposalOwners = async () =>
+  lookups.peopleFor([[Proposal, 'owner']]);
 
-exports.getProposalSectors = async () => {
-  const sectors = await Proposal.distinct('sector', { archived: { $ne: true } });
-  return sectors.filter(Boolean).sort((a, b) => a.localeCompare(b));
-};
+exports.getProposalSectors = async () =>
+  lookups.distinctList([[Proposal, 'sector']]);
 
 // ====================
 // CREATE / UPDATE

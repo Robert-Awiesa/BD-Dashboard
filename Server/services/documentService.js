@@ -6,6 +6,7 @@
 // ============================================
 
 const DocumentModel = require('../models/Document');
+const lookups = require('./lookups');
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const REVIEW_SOON_WINDOW_DAYS = 14;
@@ -130,8 +131,7 @@ exports.getDocumentAuthors = async () => {
 exports.getDocumentTags = async (category) => {
   const query = { archived: { $ne: true } };
   if (category) query.category = category;
-  const tags = await DocumentModel.distinct('tags', query);
-  return tags.filter(Boolean).sort((a, b) => a.localeCompare(b));
+  return lookups.tidy([await DocumentModel.distinct('tags', query)]);
 };
 
 // ====================

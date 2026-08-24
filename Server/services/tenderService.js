@@ -15,6 +15,7 @@ const Tender = require('../models/Tender');
 const Eoi = require('../models/Eoi');
 const Proposal = require('../models/Proposal');
 const Reminder = require('../models/Reminder');
+const lookups = require('./lookups');
 
 const clean = (v) => (typeof v === 'string' ? v.trim() : v);
 
@@ -504,18 +505,13 @@ exports.getTenderStats = async () => {
 exports.getLinkedProposals = async (tenderId) =>
   Proposal.find({ linkedTender: tenderId }).select('title stage value owner submissionDeadline lossReason');
 
-exports.getTenderOwners = async () => {
-  const [t, e] = await Promise.all([
-    Tender.distinct('owner', { archived: { $ne: true } }),
-    Eoi.distinct('owner', { archived: { $ne: true } }),
-  ]);
-  return [...new Set([...t, ...e])].filter(Boolean).sort((a, b) => a.localeCompare(b));
-};
+exports.getTenderOwners = async () =>
+  lookups.peopleFor([[Tender, 'owner'], [Eoi, 'owner']]);
 
 exports.getIssuingAuthorities = async () => {
   const [t, e] = await Promise.all([
     Tender.distinct('issuingAuthority', { archived: { $ne: true } }),
     Eoi.distinct('issuingAuthority', { archived: { $ne: true } }),
   ]);
-  return [...new Set([...t, ...e])].filter(Boolean).sort((a, b) => a.localeCompare(b));
+  return lookups.tidy([t, e]);
 };

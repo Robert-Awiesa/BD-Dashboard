@@ -9,6 +9,7 @@ const Interaction = require('../models/Interaction');
 const Pipeline = require('../models/Pipeline');
 const Milestone = require('../models/Milestone');
 const Reminder = require('../models/Reminder');
+const lookups = require('./lookups');
 
 const normaliseTags = (tags) => {
   if (Array.isArray(tags)) return tags.map((t) => String(t).trim()).filter(Boolean);
@@ -65,15 +66,11 @@ exports.getClientById = async (id) => {
   return client;
 };
 
-exports.getClientOwners = async () => {
-  const owners = await Client.distinct('accountOwner', { archived: { $ne: true } });
-  return owners.filter(Boolean).sort((a, b) => a.localeCompare(b));
-};
+exports.getClientOwners = async () =>
+  lookups.peopleFor([[Client, 'accountOwner']]);
 
-exports.getClientSectors = async () => {
-  const sectors = await Client.distinct('sector', { archived: { $ne: true } });
-  return sectors.filter(Boolean).sort((a, b) => a.localeCompare(b));
-};
+exports.getClientSectors = async () =>
+  lookups.distinctList([[Client, 'sector']]);
 
 // ====================
 // CREATE / UPDATE

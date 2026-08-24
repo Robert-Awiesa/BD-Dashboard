@@ -6,6 +6,7 @@
 // ============================================
 
 const ContentModel = require('../models/Content');
+const lookups = require('./lookups');
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
@@ -101,24 +102,16 @@ exports.getContentById = async (id) => {
 exports.getContentTags = async (contentType) => {
   const query = { archived: { $ne: true } };
   if (contentType) query.contentType = contentType;
-  const tags = await ContentModel.distinct('tags', query);
-  return tags.filter(Boolean).sort((a, b) => a.localeCompare(b));
+  return lookups.tidy([await ContentModel.distinct('tags', query)]);
 };
 
 // Sectors already in use, so the User Story / Article sector filter offers real
 // values instead of a free-text box that fragments them.
-exports.getContentSectors = async () => {
-  const sectors = await ContentModel.distinct('categorySector', { archived: { $ne: true } });
-  return sectors.filter(Boolean).sort((a, b) => a.localeCompare(b));
-};
+exports.getContentSectors = async () =>
+  lookups.distinctList([[ContentModel, 'categorySector']]);
 
-exports.getContentAuthors = async () => {
-  const [authors, editors] = await Promise.all([
-    ContentModel.distinct('authorOrUploader'),
-    ContentModel.distinct('lastEditedBy'),
-  ]);
-  return [...new Set([...authors, ...editors])].filter(Boolean).sort((a, b) => a.localeCompare(b));
-};
+exports.getContentAuthors = async () =>
+  lookups.peopleFor([[ContentModel, 'authorOrUploader'], [ContentModel, 'lastEditedBy']]);
 
 // The Assets library, for the cover-image and client-logo pickers.
 exports.getAssetLibrary = async () => {

@@ -15,6 +15,7 @@ const Event = require('../models/Event');
 const DgEvent = require('../models/DgEvent');
 const Client = require('../models/Client');
 const Proposal = require('../models/Proposal');
+const lookups = require('./lookups');
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
@@ -111,13 +112,8 @@ exports.deleteTask = async (id) => {
   return deleted;
 };
 
-exports.getTaskOwners = async () => {
-  const [owners, creators] = await Promise.all([
-    Task.distinct('owner'),
-    Task.distinct('createdBy'),
-  ]);
-  return [...new Set([...owners, ...creators])].filter(Boolean).sort((a, b) => a.localeCompare(b));
-};
+exports.getTaskOwners = async () =>
+  lookups.peopleFor([[Task, 'owner'], [Task, 'createdBy']]);
 
 // ====================
 // PROJECTS
@@ -347,18 +343,19 @@ exports.getMyWork = async (filters = {}) => {
 
 // Everyone with work assigned anywhere, so the "whose work" picker offers real
 // names rather than a free-text box.
-exports.getWorkOwners = async () => {
-  const [taskOwners, events, dgEvents, clients, proposals] = await Promise.all([
-    Task.distinct('owner'),
-    Event.distinct('prepChecklist.assignedTo'),
-    DgEvent.distinct('phases.tasks.teamLead'),
-    Client.distinct('commitments.owner'),
-    Proposal.distinct('checklist.assignedTo'),
-  ]);
-  return [...new Set([...taskOwners, ...events, ...dgEvents, ...clients, ...proposals])]
-    .filter(Boolean)
-    .sort((a, b) => a.localeCompare(b));
-};
+// Work is mirrored from five places, so this spans all of them — plus the
+// shared roster, so somebody with no work assigned yet is still selectable.
+exports.getWorkOwners = async () =>
+  lookups.peopleFor(
+    [
+      [Task, 'owner'],
+      [Event, 'prepChecklist.assignedTo'],
+      [DgEvent, 'phases.tasks.teamLead'],
+      [Client, 'commitments.owner'],
+      [Proposal, 'checklist.assignedTo'],
+    ],
+    { includeArchived: true }
+  );
 
 exports.getWorkStats = async (owner) => {
   const items = await exports.getMyWork({ owner });
