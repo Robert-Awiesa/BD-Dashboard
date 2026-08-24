@@ -165,6 +165,10 @@ const VisitFormModal = ({ open, onClose, onSaved, existing = null, mode = 'log',
           </p>
         </div>
 
+        {/* Everything below is only knowable after the trip: who actually
+            went, who they met, and what they found. Planning stops at why. */}
+        {!planning && (
+          <>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="form-label">Who went (our side)</label>
@@ -182,9 +186,6 @@ const VisitFormModal = ({ open, onClose, onSaved, existing = null, mode = 'log',
           </div>
         </div>
 
-        {/* Findings only make sense once the trip has happened. */}
-        {!planning && (
-          <>
             <div>
               <label className="form-label">What did you find?</label>
               <textarea
