@@ -2,7 +2,23 @@
 // Server/models/Eoi.js — which now actually enforce them, so a value that is
 // not here will be rejected by the API rather than quietly stored.
 
-export const TENDER_TYPES = ['Stage One', 'Stage Two', 'Single Stage', 'Framework'];
+// How the buyer is running the procurement, which decides who may bid.
+export const TENDER_TYPES = ['Opened', 'Restrictive', 'Negotiated'];
+
+// The same list Cold Calls uses, so a sector means the same thing in both.
+export const SECTORS = ['Oil and Gas', 'Manufacturing', 'Mining', 'Logistics', 'Financial', 'Others'];
+
+// Every source has to say how to get BACK to the tender. Mirrors
+// Tender.SOURCE_REQUIREMENTS on the server, which enforces it.
+export const SOURCE_REQUIREMENTS = {
+  Newspaper: { field: 'sourceImageUrl', kind: 'image', label: 'Photo or scan of the notice' },
+  Website: { field: 'sourceLink', kind: 'url', label: 'Link to the tender' },
+  WhatsApp: { field: 'sourceImageUrl', kind: 'image', label: 'Screenshot of the message' },
+  Email: { field: 'sourceDetail', kind: 'text', label: 'Who sent it, and the subject line' },
+  Meeting: { field: 'sourceDetail', kind: 'text', label: 'Who mentioned it, and where' },
+  Referral: { field: 'sourceDetail', kind: 'text', label: 'Who referred it' },
+  Other: { field: 'sourceDetail', kind: 'text', label: 'Where did this come from?' },
+};
 
 export const TENDER_STATUSES = [
   'Open', 'In Progress', 'Submitted', 'Won', 'Lost', 'No Bid', 'Withdrawn',
@@ -104,21 +120,29 @@ export const deadlineLabel = (days) => {
 export const SOURCE_LABEL = (source, detail) =>
   source === 'Other' && detail ? `Other · ${detail}` : source || '—';
 
+export const SECTOR_LABEL = (sector, custom) =>
+  sector === 'Others' && custom ? custom : sector || '';
+
 export const emptyTenderForm = {
   title: '',
   reference: '',
   source: 'Other',
   sourceDetail: '',
+  sourceLink: '',
+  sourceImageUrl: '',
+  sourceImageName: '',
   issuingAuthority: '',
   sector: '',
-  tenderType: 'Single Stage',
+  customSector: '',
+  tenderType: 'Opened',
+  openedDate: '',
   deadline: '',
   status: 'Open',
   owner: '',
   estimatedValue: '',
   currency: '',
   tags: [],
-  pdp: { objectives: '', milestones: [], individuals: [], progress: 0, notes: '' },
+  pdp: { objectives: '', proposedSolution: '', milestones: [], individuals: [], progress: 0, notes: '' },
   fdp: { currency: '', estimatedCost: '', proposedPrice: '', marginPct: '', pricingModel: '', assumptions: '', notes: '' },
   notes: '',
 };

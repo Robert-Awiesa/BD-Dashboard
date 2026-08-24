@@ -53,6 +53,28 @@ const DeadlineCell = ({ days, status }) => (
   </span>
 );
 
+// "Started" means somebody has put something in it, not that it is finished.
+const hasPdp = (t) =>
+  Boolean(t.pdp?.objectives?.trim() || t.pdp?.proposedSolution?.trim() || t.pdp?.notes?.trim()
+    || t.pdp?.milestones?.length || t.pdp?.individuals?.length);
+
+const hasFdp = (t) =>
+  Boolean(t.fdp && Object.entries(t.fdp).some(([k, v]) =>
+    k !== '_id' && v !== '' && v !== null && v !== undefined && v !== 0));
+
+const PlanChip = ({ label, started }) => (
+  <span
+    className={`px-1.5 py-0.5 rounded text-[10px] font-semibold tracking-wide border ${
+      started
+        ? 'bg-forest-50 text-forest-700 border-forest-200'
+        : 'bg-slate-50 text-slate-400 border-slate-200'
+    }`}
+    title={started ? `${label} started` : `${label} not started yet`}
+  >
+    {label}
+  </span>
+);
+
 const TenderRow = ({ tender, onOpen }) => (
   <button
     onClick={() => onOpen(tender)}
@@ -72,14 +94,20 @@ const TenderRow = ({ tender, onOpen }) => (
           {tender.owner && <span>· {tender.owner}</span>}
           {tender.estimatedValue > 0 && <span>· {formatMoney(tender.estimatedValue, tender.currency)}</span>}
         </div>
-        {tender.pdp?.milestones?.length > 0 && (
-          <div className="flex items-center gap-2 mt-1.5 max-w-xs">
-            <div className="h-1 flex-1 rounded-full bg-slate-100 overflow-hidden">
-              <div className="h-full bg-forest-500 rounded-full" style={{ width: `${tender.pdpProgress}%` }} />
+        {/* The two plans always show, whether or not they have been started —
+            a registry-only tender should make it obvious what is still to do. */}
+        <div className="flex flex-wrap items-center gap-2 mt-1.5">
+          <PlanChip label="PDP" started={hasPdp(tender)} />
+          <PlanChip label="FDP" started={hasFdp(tender)} />
+          {tender.pdp?.milestones?.length > 0 && (
+            <div className="flex items-center gap-2 flex-1 min-w-32 max-w-xs">
+              <div className="h-1 flex-1 rounded-full bg-slate-100 overflow-hidden">
+                <div className="h-full bg-forest-500 rounded-full" style={{ width: `${tender.pdpProgress}%` }} />
+              </div>
+              <span className="text-[11px] text-slate-400 whitespace-nowrap">{tender.pdpProgress}% prepared</span>
             </div>
-            <span className="text-[11px] text-slate-400">{tender.pdpProgress}% prepared</span>
-          </div>
-        )}
+          )}
+        </div>
       </div>
       <DeadlineCell days={tender.daysToDeadline} status={tender.deadlineStatus} />
     </div>

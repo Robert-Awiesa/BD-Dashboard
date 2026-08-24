@@ -3,6 +3,7 @@ const router = express.Router();
 const tenderService = require('../services/tenderService');
 const Tender = require('../models/Tender');
 const Eoi = require('../models/Eoi');
+const { uploadTender, EOI_MAX_BYTES } = require('../middleware/upload');
 
 // Enum manifest, so the forms cannot drift from the schema.
 router.get('/meta', (req, res) => {
@@ -12,9 +13,22 @@ router.get('/meta', (req, res) => {
     closedStatuses: Tender.CLOSED_STATUSES,
     submittedStatuses: Tender.SUBMITTED_STATUSES,
     sources: Tender.SOURCES,
+    sectors: Tender.SECTORS,
+    sourceRequirements: Tender.SOURCE_REQUIREMENTS,
     eoiStatuses: Eoi.EOI_STATUSES,
     decisions: Eoi.DECISIONS,
     closingSoonDays: Tender.CLOSING_SOON_DAYS,
+  });
+});
+
+// The source image is required at CREATE time, so it uploads on its own and
+// the create payload carries the returned URL. That also lets an edit swap the
+// clipping without re-posting the whole record.
+router.post('/source-image', uploadTender.single('sourceImage'), (req, res) => {
+  if (!req.file) return res.status(400).json({ message: 'No file uploaded' });
+  res.status(201).json({
+    url: `/uploads/tenders/${req.file.filename}`,
+    fileName: req.file.originalname,
   });
 });
 
@@ -121,6 +135,17 @@ router.delete('/:id', async (req, res) => {
     const status = error.message === 'Tender not found' ? 404 : 409;
     res.status(status).json({ message: error.message });
   }
+});
+
+// Multer rejections surface as 400s rather than the generic 500 handler.
+router.use((err, req, res, next) => {
+  if (err) {
+    const message = err.code === 'LIMIT_FILE_SIZE'
+      ? `File is too large. Maximum upload size is ${Math.round(EOI_MAX_BYTES / 1024 / 1024)}MB.`
+      : err.message;
+    return res.status(400).json({ message });
+  }
+  next();
 });
 
 module.exports = router;

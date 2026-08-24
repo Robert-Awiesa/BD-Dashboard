@@ -25,10 +25,11 @@ const DOCUMENTS_DIR = path.join(UPLOAD_ROOT, 'documents');
 const ASSETS_DIR = path.join(UPLOAD_ROOT, 'assets');
 const VISITS_DIR = path.join(UPLOAD_ROOT, 'visits');
 const EOIS_DIR = path.join(UPLOAD_ROOT, 'eois');
+const TENDERS_DIR = path.join(UPLOAD_ROOT, 'tenders');
 
 // Never let a filesystem problem take the whole API down at boot. A failure
 // here only means uploads will not work; every other route stays up.
-for (const dir of [SCRIPTS_DIR, COVERS_DIR, MEDIA_DIR, DOCUMENTS_DIR, ASSETS_DIR, VISITS_DIR, EOIS_DIR]) {
+for (const dir of [SCRIPTS_DIR, COVERS_DIR, MEDIA_DIR, DOCUMENTS_DIR, ASSETS_DIR, VISITS_DIR, EOIS_DIR, TENDERS_DIR]) {
   try {
     fs.mkdirSync(dir, { recursive: true });
   } catch (err) {
@@ -193,6 +194,14 @@ exports.uploadEoi = multer({
 });
 
 exports.EOI_MAX_BYTES = EOI_MAX_BYTES;
+
+// Tender source evidence: the newspaper clipping, the WhatsApp screenshot.
+// Same shape and limits as EOI notices — it is the same kind of artefact.
+exports.uploadTender = multer({
+  storage: makeStorage(TENDERS_DIR),
+  fileFilter: eoiFileFilter,
+  limits: { fileSize: EOI_MAX_BYTES },
+});
 
 exports.MEDIA_MAX_BYTES = MEDIA_MAX_BYTES;
 exports.UPLOAD_ROOT = UPLOAD_ROOT;

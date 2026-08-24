@@ -9,7 +9,8 @@ const MS_PER_DAY = 24 * 60 * 60 * 1000;
 // Division of labour with the Proposals module: a Tender is the OPPORTUNITY and
 // the work of preparing a bid. A Proposal is the BID ITSELF and its win/loss
 // record. Proposal.linkedTender joins them; neither copies the other.
-const TENDER_TYPES = ['Stage One', 'Stage Two', 'Single Stage', 'Framework'];
+// How the buyer is running the procurement, which decides who may bid.
+const TENDER_TYPES = ['Opened', 'Restrictive', 'Negotiated'];
 
 const TENDER_STATUSES = [
   'Open',          // spotted, not yet being worked
@@ -26,6 +27,24 @@ const CLOSED_STATUSES = ['Won', 'Lost', 'No Bid', 'Withdrawn'];
 const SUBMITTED_STATUSES = ['Submitted', 'Won', 'Lost'];
 
 const SOURCES = ['Newspaper', 'Website', 'WhatsApp', 'Meeting', 'Email', 'Referral', 'Other'];
+
+// The same list Cold Calls uses, so a sector filter means the same thing in
+// both places and the two modules can be reported on together.
+const SECTORS = ['Oil and Gas', 'Manufacturing', 'Mining', 'Logistics', 'Financial', 'Others'];
+
+// Every source has to say how to GET BACK to the tender. A notice nobody can
+// re-open is not a lead, and which field carries that depends on where it came
+// from — a link for a website, the clipping for a newspaper, a name for a
+// referral. `field` names where it is stored; `kind` tells the form what to render.
+const SOURCE_REQUIREMENTS = {
+  Newspaper: { field: 'sourceImageUrl', kind: 'image', label: 'Photo or scan of the notice' },
+  Website: { field: 'sourceLink', kind: 'url', label: 'Link to the tender' },
+  WhatsApp: { field: 'sourceImageUrl', kind: 'image', label: 'Screenshot of the message' },
+  Email: { field: 'sourceDetail', kind: 'text', label: 'Who sent it, and the subject line' },
+  Meeting: { field: 'sourceDetail', kind: 'text', label: 'Who mentioned it, and where' },
+  Referral: { field: 'sourceDetail', kind: 'text', label: 'Who referred it' },
+  Other: { field: 'sourceDetail', kind: 'text', label: 'Where did this come from?' },
+};
 
 // Deadline pressure, derived from the clock rather than typed by anyone.
 const CLOSING_SOON_DAYS = 7;
@@ -57,6 +76,9 @@ const milestoneSchema = new mongoose.Schema(
 const pdpSchema = new mongoose.Schema(
   {
     objectives: { type: String, default: '' },
+    // What we are actually proposing to do. Objectives say what winning
+    // depends on; this says what we intend to deliver.
+    proposedSolution: { type: String, default: '' },
     milestones: [milestoneSchema],
     individuals: [individualSchema],
     // Kept for plans with no milestones; otherwise progress is computed.
@@ -89,13 +111,22 @@ const tenderSchema = new mongoose.Schema(
     // literal typed source when it is "Other", so reporting stays clean.
     source: { type: String, enum: SOURCES, default: 'Other' },
     sourceDetail: { type: String, default: '' },
+    // Whichever of these the source calls for — see SOURCE_REQUIREMENTS.
+    sourceLink: { type: String, default: '' },
+    sourceImageUrl: { type: String, default: '' },
+    sourceImageName: { type: String, default: '' },
     issuingAuthority: { type: String, default: '' },
-    sector: { type: String, default: '' },
+    sector: { type: String, enum: [...SECTORS, ''], default: '' },
+    // Only meaningful when sector is 'Others'; keeps the real sector on record
+    // without letting the enum drift.
+    customSector: { type: String, default: '' },
 
-    tenderType: { type: String, enum: TENDER_TYPES, default: 'Single Stage' },
+    tenderType: { type: String, enum: TENDER_TYPES, default: 'Opened' },
 
     // Real dates. Previously strings, which made sorting, countdowns and any
     // kind of automated deadline warning impossible.
+    // When the buyer opened the tender — always on or before the deadline.
+    openedDate: { type: Date },
     deadline: { type: Date },
     submittedAt: { type: Date },
     decidedAt: { type: Date },
@@ -219,6 +250,8 @@ tenderSchema.statics.TENDER_STATUSES = TENDER_STATUSES;
 tenderSchema.statics.CLOSED_STATUSES = CLOSED_STATUSES;
 tenderSchema.statics.SUBMITTED_STATUSES = SUBMITTED_STATUSES;
 tenderSchema.statics.SOURCES = SOURCES;
+tenderSchema.statics.SECTORS = SECTORS;
+tenderSchema.statics.SOURCE_REQUIREMENTS = SOURCE_REQUIREMENTS;
 tenderSchema.statics.CLOSING_SOON_DAYS = CLOSING_SOON_DAYS;
 
 module.exports = mongoose.model('Tender', tenderSchema);

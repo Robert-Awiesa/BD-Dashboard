@@ -80,9 +80,14 @@ const buildTenderPayload = (data) => ({
   reference: data.reference || '',
   source: data.source || 'Other',
   sourceDetail: data.sourceDetail || '',
+  sourceLink: data.sourceLink || '',
+  sourceImageUrl: data.sourceImageUrl || '',
+  sourceImageName: data.sourceImageName || '',
   issuingAuthority: data.issuingAuthority || '',
   sector: data.sector || '',
-  tenderType: data.tenderType || 'Single Stage',
+  customSector: data.customSector || '',
+  tenderType: data.tenderType || 'Opened',
+  openedDate: asDate(data.openedDate) || undefined,
   deadline: asDate(data.deadline) || undefined,
   status: data.status || 'Open',
   owner: data.owner || '',
@@ -95,9 +100,40 @@ const buildTenderPayload = (data) => ({
   notes: data.notes || '',
 });
 
+// A notice nobody can re-open is not a lead, so whichever field the source
+// calls for has to be filled in. See Tender.SOURCE_REQUIREMENTS.
+const assertSourceDirection = (record) => {
+  const rule = Tender.SOURCE_REQUIREMENTS[record.source];
+  if (!rule) return;
+  if (clean(record[rule.field])) return;
+  // A tender promoted from an EOI already has a trail: the EOI record holds the
+  // original notice. Demanding a link the EOI never collected would block every
+  // conversion on a field nobody was asked for at the time.
+  if (record.sourceEoi) return;
+  throw new Error(`${record.source} tenders need "${rule.label}" — without it nobody can find this tender again.`);
+};
+
+// A tender cannot close before it opens.
+const assertDateOrder = (record) => {
+  if (record.openedDate && record.deadline && record.openedDate > record.deadline) {
+    throw new Error('The tender cannot open after its own deadline.');
+  }
+};
+
+// 'Others' is a placeholder, not a sector — it only means anything with the
+// real one written next to it.
+const assertSector = (record) => {
+  if (record.sector === 'Others' && !clean(record.customSector)) {
+    throw new Error('Pick a sector, or choose "Others" and say which sector it is.');
+  }
+};
+
 exports.createTender = async (data) => {
   const payload = buildTenderPayload(data);
   if (!payload.title) throw new Error('Give the tender a title');
+  assertSourceDirection(payload);
+  assertDateOrder(payload);
+  assertSector(payload);
   const created = await Tender.create(payload);
   return exports.getTenderById(created._id);
 };
@@ -111,12 +147,17 @@ exports.updateTender = async (id, data) => {
     throw new Error('A tender needs a title');
   }
   if (updates.tags !== undefined) updates.tags = normaliseTags(updates.tags);
-  for (const field of ['deadline', 'submittedAt', 'decidedAt']) {
+  for (const field of ['openedDate', 'deadline', 'submittedAt', 'decidedAt']) {
     if (field in updates) updates[field] = asDate(updates[field]);
   }
   if (updates.estimatedValue !== undefined) updates.estimatedValue = Number(updates.estimatedValue) || 0;
 
   Object.assign(tender, updates);
+  // Checked against the merged record, so a partial edit cannot slip a tender
+  // past a rule the whole record still has to satisfy.
+  assertSourceDirection(tender);
+  assertDateOrder(tender);
+  assertSector(tender);
   await tender.save(); // save(), so the pre-save date stamping runs
   return exports.getTenderById(tender._id);
 };
@@ -299,22 +340,45 @@ exports.convertEoiToTender = async (eoiId, overrides = {}) => {
     throw new Error(`"${eoi.title}" has already been converted to a tender.`);
   }
 
-  const tender = await Tender.create(
-    buildTenderPayload({
-      title: eoi.title,
-      reference: eoi.reference,
-      source: eoi.source,
-      sourceDetail: eoi.sourceDetail,
-      issuingAuthority: eoi.issuingAuthority,
-      sector: eoi.sector,
-      deadline: eoi.deadline,
-      owner: eoi.owner,
-      tags: eoi.tags,
-      notes: eoi.notes,
-      sourceEoi: eoi._id,
-      ...overrides,
-    })
-  );
+  // EOI sectors are free text; tender sectors are an enum. Anything that is
+  // not one of the six is kept verbatim under 'Others' rather than dropped or
+  // — worse — failing the conversion on a field nobody was asked about.
+  const known = Tender.SECTORS.includes(eoi.sector);
+  const sector = eoi.sector ? (known ? eoi.sector : 'Others') : '';
+  const customSector = known ? '' : (eoi.sector || '');
+
+  // The EOI's own notice is the tender's way back to the source, so an
+  // uploaded clipping carries across and satisfies the requirement.
+  const carried = eoi.attachmentType === 'upload'
+    ? { sourceImageUrl: eoi.attachmentUrl, sourceImageName: eoi.attachmentFileName }
+    : { sourceLink: eoi.attachmentUrl || '' };
+
+  // When the EOI carried nothing, say plainly where this came from, so the
+  // record still answers "how do we get back to it".
+  const provenance = clean(eoi.sourceDetail)
+    || `From EOI ${eoi.reference || eoi.title} — see the linked notice`;
+
+  const payload = buildTenderPayload({
+    title: eoi.title,
+    reference: eoi.reference,
+    source: eoi.source,
+    sourceDetail: provenance,
+    ...carried,
+    issuingAuthority: eoi.issuingAuthority,
+    sector,
+    customSector,
+    deadline: eoi.deadline,
+    owner: eoi.owner,
+    tags: eoi.tags,
+    notes: eoi.notes,
+    sourceEoi: eoi._id,
+    ...overrides,
+  });
+  assertSourceDirection(payload);
+  assertDateOrder(payload);
+  assertSector(payload);
+
+  const tender = await Tender.create(payload);
 
   eoi.convertedToTender = tender._id;
   // Converting IS the decision to pursue.

@@ -140,6 +140,15 @@ export const bdApi = {
 
   // --- Tenders & EOI: deadline intelligence and the decision trail ---
 
+  // The source image is required before the tender exists, so it uploads on
+  // its own and the create payload carries the returned URL.
+  async uploadTenderSourceImage(file) {
+    const body = new FormData();
+    body.append('sourceImage', file);
+    const response = await fetch(`${API_BASE_URL}/tenders/source-image`, { method: 'POST', body });
+    return handleResponse(response);
+  },
+
   async getTenderMeta() {
     const response = await fetch(`${API_BASE_URL}/tenders/meta`);
     return handleResponse(response);

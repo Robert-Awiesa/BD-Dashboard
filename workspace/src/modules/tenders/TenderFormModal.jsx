@@ -6,7 +6,10 @@ import {
   TENDER_TYPES,
   TENDER_STATUSES,
   SOURCES,
+  SECTORS,
+  SOURCE_REQUIREMENTS,
   emptyTenderForm,
+  toDateInput,
 } from './tenderConstants';
 
 const blankIndividual = { name: '', responsibility: '', notes: '' };
@@ -27,12 +30,32 @@ const TenderFormModal = ({ open, onClose, onSaved, existing, owners = [], author
     return {
       ...emptyTenderForm,
       ...existing,
+      openedDate: toDateInput(existing.openedDate),
+      deadline: toDateInput(existing.deadline),
       pdp: { ...emptyTenderForm.pdp, ...(existing.pdp || {}) },
       fdp: { ...emptyTenderForm.fdp, ...(existing.fdp || {}) },
     };
   });
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [uploading, setUploading] = useState(false);
+
+  // Which "how do we find this again" field this source calls for.
+  const requirement = SOURCE_REQUIREMENTS[form.source] || null;
+
+  const uploadSourceImage = async (file) => {
+    if (!file) return;
+    setUploading(true);
+    setError(null);
+    try {
+      const { url, fileName } = await bdApi.uploadTenderSourceImage(file);
+      setForm((f) => ({ ...f, sourceImageUrl: url, sourceImageName: fileName }));
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const set = (field, value) => setForm((f) => ({ ...f, [field]: value }));
   const setPdp = (field, value) => setForm((f) => ({ ...f, pdp: { ...f.pdp, [field]: value } }));
@@ -56,6 +79,18 @@ const TenderFormModal = ({ open, onClose, onSaved, existing, owners = [], author
     e.preventDefault();
     if (!form.title.trim()) {
       setError('Give the tender a title');
+      return;
+    }
+    if (requirement && !String(form[requirement.field] || '').trim()) {
+      setError(`${form.source} tenders need "${requirement.label}" — without it nobody can find this tender again.`);
+      return;
+    }
+    if (form.sector === 'Others' && !form.customSector.trim()) {
+      setError('Say which sector this is.');
+      return;
+    }
+    if (form.openedDate && form.deadline && form.openedDate > form.deadline) {
+      setError('The tender cannot open after its own deadline.');
       return;
     }
     setBusy(true);
@@ -139,9 +174,18 @@ const TenderFormModal = ({ open, onClose, onSaved, existing, owners = [], author
           </div>
           <div>
             <label className="form-label">Sector</label>
-            <input type="text" className="form-input" value={form.sector}
-              onChange={(e) => set('sector', e.target.value)} placeholder="Healthcare, Logistics…" />
+            <select className="form-input" value={form.sector} onChange={(e) => set('sector', e.target.value)}>
+              <option value="">Select…</option>
+              {SECTORS.map((x) => <option key={x} value={x}>{x}</option>)}
+            </select>
           </div>
+          {form.sector === 'Others' && (
+            <div>
+              <label className="form-label">Which sector? *</label>
+              <input type="text" className="form-input" value={form.customSector}
+                onChange={(e) => set('customSector', e.target.value)} placeholder="e.g. Transportation" />
+            </div>
+          )}
           <div>
             <label className="form-label">Tender type</label>
             <select className="form-input" value={form.tenderType} onChange={(e) => set('tenderType', e.target.value)}>
@@ -161,17 +205,50 @@ const TenderFormModal = ({ open, onClose, onSaved, existing, owners = [], author
               {SOURCES.map((s) => <option key={s} value={s}>{s}</option>)}
             </select>
           </div>
-          {form.source === 'Other' && (
+          {requirement?.kind === 'url' && (
             <div>
-              <label className="form-label">Source detail *</label>
+              <label className="form-label">{requirement.label} *</label>
+              <input type="url" className="form-input" value={form.sourceLink}
+                onChange={(e) => set('sourceLink', e.target.value)}
+                placeholder="https://…" />
+            </div>
+          )}
+          {requirement?.kind === 'text' && (
+            <div>
+              <label className="form-label">{requirement.label} *</label>
               <input type="text" className="form-input" value={form.sourceDetail}
-                onChange={(e) => set('sourceDetail', e.target.value)} placeholder="e.g. Industry WhatsApp group" />
+                onChange={(e) => set('sourceDetail', e.target.value)}
+                placeholder="So anyone can trace it back" />
+            </div>
+          )}
+          {requirement?.kind === 'image' && (
+            <div className="sm:col-span-2">
+              <label className="form-label">{requirement.label} *</label>
+              <div className="flex flex-wrap items-center gap-2">
+                <input
+                  type="file"
+                  accept="image/*,.pdf"
+                  className="text-sm"
+                  onChange={(e) => uploadSourceImage(e.target.files?.[0])}
+                />
+                {uploading && <span className="text-xs text-slate-500">Uploading…</span>}
+                {form.sourceImageUrl && !uploading && (
+                  <span className="text-xs text-forest-700">
+                    ✓ {form.sourceImageName || 'attached'}
+                  </span>
+                )}
+              </div>
             </div>
           )}
           <div>
+            <label className="form-label">Tender opened</label>
+            <input type="date" className="form-input" value={form.openedDate}
+              onChange={(e) => set('openedDate', e.target.value)} max={form.deadline || undefined} />
+          </div>
+          <div>
             <label className="form-label">Deadline</label>
             <input type="date" className="form-input" value={form.deadline}
-              onChange={(e) => set('deadline', e.target.value)} />
+              onChange={(e) => set('deadline', e.target.value)} min={form.openedDate || undefined} />
           </div>
           <div>
             <label className="form-label">Estimated value</label>
@@ -185,12 +262,28 @@ const TenderFormModal = ({ open, onClose, onSaved, existing, owners = [], author
           </div>
         </div>
 
+        {!isEdit && (
+          <p className="text-xs text-slate-500 px-1">
+            Register the notice first. The Proposal and Financial Development
+            Plans open on this tender once it is saved.
+          </p>
+        )}
+
+        {isEdit && (
+        <>
         <Section title="PDP — Proposal Development Plan" hint="Planning and progress: who does what, by when.">
           <div className="space-y-2">
             <div>
               <label className="form-label">Objectives</label>
               <textarea className="form-input" rows="2" value={form.pdp.objectives}
                 onChange={(e) => setPdp('objectives', e.target.value)} placeholder="What winning this tender depends on" />
+            </div>
+
+            <div>
+              <label className="form-label">Proposed solution</label>
+              <textarea className="form-input" rows="2" value={form.pdp.proposedSolution}
+                onChange={(e) => setPdp('proposedSolution', e.target.value)}
+                placeholder="What we are putting forward to deliver it" />
             </div>
 
             <div>
@@ -304,12 +397,16 @@ const TenderFormModal = ({ open, onClose, onSaved, existing, owners = [], author
             </div>
           </div>
         </Section>
+        </>
+        )}
 
-        <div>
-          <label className="form-label">Notes</label>
-          <textarea className="form-input" rows="2" value={form.notes}
-            onChange={(e) => set('notes', e.target.value)} placeholder="Anything else worth remembering" />
-        </div>
+        {isEdit && (
+          <div>
+            <label className="form-label">Notes</label>
+            <textarea className="form-input" rows="2" value={form.notes}
+              onChange={(e) => set('notes', e.target.value)} placeholder="Anything else worth remembering" />
+          </div>
+        )}
         <datalist id="tender-owners">
           {owners.map((o) => <option key={o} value={o} />)}
         </datalist>

@@ -51,6 +51,9 @@ app.get('/api/health', async (req, res) => {
   res.json({
     status: dbStatus === 'connected' ? 'ok' : 'degraded',
     database: dbStatus,
+    // The database NAME, not just the connection state. Test suites check this
+    // before wiping collections, so they cannot run against the live data.
+    databaseName: mongoose.connection.name || null,
     databaseError: dbError,
     hasMongoUri: Boolean(process.env.MONGODB_URI),
     serverless: Boolean(process.env.VERCEL),

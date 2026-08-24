@@ -8,6 +8,7 @@ import {
   formatMoney,
   formatDate,
   SOURCE_LABEL,
+  SECTOR_LABEL,
 } from './tenderConstants';
 
 const TABS = [
@@ -164,7 +165,36 @@ const TenderDetailModal = ({ open, onClose, tender, onEdit, onDelete, onChanged 
               <MetaRow label="Reference">{tender.reference || '—'}</MetaRow>
               <MetaRow label="Type">{tender.tenderType || '—'}</MetaRow>
               <MetaRow label="Issuing authority">{tender.issuingAuthority || '—'}</MetaRow>
+              <MetaRow label="Sector">
+                {SECTOR_LABEL(tender.sector, tender.customSector) || '—'}
+              </MetaRow>
               <MetaRow label="Source">{SOURCE_LABEL(tender.source, tender.sourceDetail)}</MetaRow>
+              {/* However the tender was found, this is the way back to it. */}
+              {tender.sourceLink && (
+                <MetaRow label="Tender link">
+                  <a
+                    href={tender.sourceLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-navy-700 underline break-all"
+                  >
+                    Open the notice ↗
+                  </a>
+                </MetaRow>
+              )}
+              {tender.sourceImageUrl && (
+                <MetaRow label="Notice">
+                  <a
+                    href={tender.sourceImageUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-navy-700 underline break-all"
+                  >
+                    {tender.sourceImageName || 'View the clipping'} ↗
+                  </a>
+                </MetaRow>
+              )}
+              <MetaRow label="Opened">{formatDate(tender.openedDate)}</MetaRow>
               <MetaRow label="Deadline">{formatDate(tender.deadline)}</MetaRow>
               <MetaRow label="Status">{tender.status}</MetaRow>
             </div>
@@ -192,6 +222,13 @@ const TenderDetailModal = ({ open, onClose, tender, onEdit, onDelete, onChanged 
               <div className="rounded-lg border border-slate-200 px-3 py-2.5">
                 <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Objectives</p>
                 <p className="text-sm text-slate-700 mt-0.5 whitespace-pre-wrap">{pdp.objectives}</p>
+              </div>
+            )}
+
+            {pdp.proposedSolution && (
+              <div className="rounded-lg border border-slate-200 px-3 py-2.5">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Proposed solution</p>
+                <p className="text-sm text-slate-700 mt-0.5 whitespace-pre-wrap">{pdp.proposedSolution}</p>
               </div>
             )}
 
