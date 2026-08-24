@@ -2,13 +2,15 @@ import { useEffect, useMemo, useState } from 'react';
 import { bdApi } from '../../context/services/api';
 import Button from '../../components/common/Button';
 import Badge from '../../components/common/Badge';
+import Modal from '../../components/common/Modal';
+import CelebrationIcon from './celebrationIcons';
 import EventCard from './EventCard';
 import EventWizardModal from './EventWizardModal';
 import EventMetricsModal from './EventMetricsModal';
 import MilestoneModal from './MilestoneModal';
 import DgEventWorkspace from './DgEventWorkspace';
 import AddMediaModal from './AddMediaModal';
-import { EVENT_FILTERS, MILESTONE_ICON, MONTHS } from './eventConstants';
+import { EVENT_FILTERS, MONTHS } from './eventConstants';
 
 const TABS = [
   { key: 'hub', label: 'Operational Hub' },
@@ -34,6 +36,7 @@ const EventsModule = () => {
 
   const [showMilestone, setShowMilestone] = useState(false);
   const [editingMilestone, setEditingMilestone] = useState(null);
+  const [viewingMilestone, setViewingMilestone] = useState(null);
 
   const [media, setMedia] = useState([]);
   const [showMedia, setShowMedia] = useState(false);
@@ -178,8 +181,20 @@ const EventsModule = () => {
     }
   };
 
-  const internalMilestones = milestones.filter((m) => m.milestoneType === 'Team Birthday' || m.milestoneType === 'Work Anniversary');
-  const externalMilestones = milestones.filter((m) => m.milestoneType === 'Partner Milestone' || m.milestoneType === 'VIP Stakeholder Birthday');
+  // Flatten records into celebrations: a team member yields both a birthday
+  // and a work anniversary, and each wants its own row on its own date.
+  const celebrations = milestones.flatMap((m) =>
+    (m.occurrences || []).map((o) => ({ record: m, occ: o }))
+  ).sort((a, b) => a.occ.daysUntil - b.occ.daysUntil);
+
+  const teamBirthdays = celebrations.filter(
+    (c) => c.occ.kind === 'Birthday' && c.record.milestoneType === 'Team Member'
+  );
+  const externalBirthdays = celebrations.filter(
+    (c) => c.occ.kind === 'Birthday' && c.record.milestoneType !== 'Team Member'
+  );
+  const workMilestones = celebrations.filter((c) => c.occ.kind === 'Milestone');
+  const drafts = milestones.filter((m) => m.isDraft);
   const refreshMedia = async () => setMedia(await bdApi.getMediaArchive());
 
   const handleDeleteMedia = async (item) => {
@@ -192,29 +207,42 @@ const EventsModule = () => {
     }
   };
 
-  const renderMilestone = (m) => (
-    <div key={m._id} className="flex items-start gap-2.5 py-2 border-b border-slate-100 last:border-0">
-      <span className="text-lg leading-none mt-0.5">{MILESTONE_ICON[m.milestoneType]}</span>
+  // A row is one celebration, not one record. Clicking it opens the person.
+  const renderCelebration = ({ record: m, occ }) => (
+    <button
+      key={`${m._id}-${occ.kind}-${occ.month}-${occ.day}`}
+      type="button"
+      onClick={() => setViewingMilestone(m)}
+      className="w-full text-left flex items-start gap-2.5 py-2 border-b border-slate-100 last:border-0 hover:bg-slate-50 -mx-4 px-4 cursor-pointer transition-colors"
+    >
+      <CelebrationIcon
+        kind={occ.kind}
+        milestoneType={m.milestoneType}
+        className={`w-5 h-5 shrink-0 mt-0.5 ${occ.kind === 'Birthday' ? 'text-amber-500' : 'text-navy-600'}`}
+      />
       <div className="min-w-0 flex-1">
         <p className="text-sm text-navy-900 font-medium truncate">
           {m.participantName}
-          {m.yearsCompleted ? <span className="text-xs text-forest-700 font-normal"> · {m.yearsCompleted} yr</span> : null}
+          {m.isDraft && <span className="ml-1.5 text-[10px] text-amber-700 font-semibold">DRAFT</span>}
         </p>
+        {/* Say plainly what is being celebrated and how long it has been —
+            "5 years on 01 Sept" rather than a bare date and a "5 yr" chip. */}
         <p className="text-xs text-slate-500">
-          {MONTHS[m.milestoneMonth - 1]} {m.milestoneDay}
+          {occ.kind === 'Birthday'
+            ? `Birthday · ${MONTHS[occ.month - 1]} ${occ.day}`
+            : `${occ.years ? `${occ.years} year${occ.years === 1 ? '' : 's'}` : occ.label} · ${MONTHS[occ.month - 1]} ${occ.day}`}
           {m.departmentOrCompany ? ` · ${m.departmentOrCompany}` : ''}
         </p>
       </div>
       <div className="text-right shrink-0">
-        {m.daysUntil !== null && m.daysUntil <= 7 && (
-          <Badge label={m.daysUntil === 0 ? 'Today' : `${m.daysUntil}d`} status={m.daysUntil === 0 ? 'success' : 'ongoing'} />
+        {occ.daysUntil !== null && occ.daysUntil <= 7 && (
+          <Badge
+            label={occ.daysUntil === 0 ? 'Today' : `${occ.daysUntil}d`}
+            status={occ.daysUntil === 0 ? 'success' : 'ongoing'}
+          />
         )}
-        <div className="flex gap-1.5 mt-1 justify-end">
-          <button type="button" onClick={() => { setEditingMilestone(m); setShowMilestone(true); }} className="text-[11px] text-navy-700 hover:underline cursor-pointer">Edit</button>
-          <button type="button" onClick={() => handleDeleteMilestone(m._id)} className="text-[11px] text-red-600 hover:underline cursor-pointer">Delete</button>
-        </div>
       </div>
-    </div>
+    </button>
   );
 
   return (
@@ -329,7 +357,7 @@ const EventsModule = () => {
             {/* Right zone — culture, stakeholders, media */}
             <div className="space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
-                <h2 className="text-lg font-bold text-navy-900">Team Birthdays & Media Hub</h2>
+                <h2 className="text-lg font-bold text-navy-900">Celebrations &amp; Media Hub</h2>
                 <Button variant="secondary" className="text-xs px-3 py-1.5" onClick={() => { setEditingMilestone(null); setShowMilestone(true); }}>
                   + Milestone
                 </Button>
@@ -337,23 +365,41 @@ const EventsModule = () => {
 
               <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
                 <div className="px-4 py-2.5 border-b border-slate-200 bg-slate-50/70">
-                  <h3 className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Team — Birthdays & Work Anniversaries</h3>
+                  <h3 className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Team Birthdays</h3>
                 </div>
                 <div className="px-4 py-1">
-                  {internalMilestones.length === 0
-                    ? <p className="text-xs text-slate-400 py-3">No team milestones recorded yet.</p>
-                    : internalMilestones.map(renderMilestone)}
+                  {teamBirthdays.length === 0
+                    ? <p className="text-xs text-slate-400 py-3">No team birthdays recorded yet.</p>
+                    : teamBirthdays.map(renderCelebration)}
                 </div>
               </div>
 
               <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
                 <div className="px-4 py-2.5 border-b border-slate-200 bg-slate-50/70">
-                  <h3 className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Partners & VIP Stakeholders</h3>
+                  <h3 className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Partner &amp; VIP Birthdays</h3>
                 </div>
                 <div className="px-4 py-1">
-                  {externalMilestones.length === 0
-                    ? <p className="text-xs text-slate-400 py-3">No partner milestones recorded yet.</p>
-                    : externalMilestones.map(renderMilestone)}
+                  {externalBirthdays.length === 0
+                    ? <p className="text-xs text-slate-400 py-3">No partner or VIP birthdays recorded yet.</p>
+                    : externalBirthdays.map(renderCelebration)}
+                </div>
+              </div>
+
+              <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+                <div className="px-4 py-2.5 border-b border-slate-200 bg-slate-50/70">
+                  <h3 className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Milestones</h3>
+                </div>
+                <div className="px-4 py-1">
+                  {workMilestones.length === 0
+                    ? <p className="text-xs text-slate-400 py-3">No milestones recorded yet.</p>
+                    : workMilestones.map(renderCelebration)}
+                  {drafts.length > 0 && (
+                    <p className="text-[11px] text-amber-700 py-2 border-t border-slate-100">
+                      {drafts.length === 1
+                        ? '1 draft still needs a date before it will be chased.'
+                        : `${drafts.length} drafts still need a date before they will be chased.`}
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -447,6 +493,105 @@ const EventsModule = () => {
         submitting={submitting}
         initialData={editingMilestone}
       />
+
+      {/* Clicking any celebration opens the whole person, not just the date
+          that happened to be listed. */}
+      <Modal
+        open={!!viewingMilestone}
+        onClose={() => setViewingMilestone(null)}
+        title={viewingMilestone?.participantName}
+        description={viewingMilestone?.role || viewingMilestone?.departmentOrCompany || ''}
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="danger"
+              onClick={() => { handleDeleteMilestone(viewingMilestone._id); setViewingMilestone(null); }}
+            >
+              Delete
+            </Button>
+            <Button
+              variant="primary"
+              onClick={() => { setEditingMilestone(viewingMilestone); setViewingMilestone(null); setShowMilestone(true); }}
+            >
+              ✎ Edit
+            </Button>
+          </div>
+        }
+      >
+        {viewingMilestone && (
+          <div className="space-y-3">
+            {viewingMilestone.isDraft && (
+              <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                Saved as a draft — it will not be chased until the required date is filled in.
+              </p>
+            )}
+
+            <dl className="text-sm">
+              <div className="flex justify-between gap-4 py-1.5 border-b border-slate-100">
+                <dt className="text-xs text-slate-500">Type</dt>
+                <dd className="text-navy-900">{viewingMilestone.milestoneType}</dd>
+              </div>
+              {viewingMilestone.departmentOrCompany && (
+                <div className="flex justify-between gap-4 py-1.5 border-b border-slate-100">
+                  <dt className="text-xs text-slate-500">Department / Organisation</dt>
+                  <dd className="text-navy-900">{viewingMilestone.departmentOrCompany}</dd>
+                </div>
+              )}
+              {viewingMilestone.role && (
+                <div className="flex justify-between gap-4 py-1.5 border-b border-slate-100">
+                  <dt className="text-xs text-slate-500">Role</dt>
+                  <dd className="text-navy-900">{viewingMilestone.role}</dd>
+                </div>
+              )}
+              {viewingMilestone.originalStartDate && (
+                <div className="flex justify-between gap-4 py-1.5 border-b border-slate-100">
+                  <dt className="text-xs text-slate-500">Started</dt>
+                  <dd className="text-navy-900">
+                    {new Date(viewingMilestone.originalStartDate).toLocaleDateString(undefined,
+                      { day: '2-digit', month: 'short', year: 'numeric' })}
+                  </dd>
+                </div>
+              )}
+            </dl>
+
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-1.5">
+                What is coming up
+              </p>
+              <div className="space-y-1.5">
+                {(viewingMilestone.occurrences || []).map((o) => (
+                  <div key={`${o.kind}-${o.month}-${o.day}`} className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 px-3 py-2">
+                    <span className="text-sm text-navy-900 flex items-center gap-2">
+                      <CelebrationIcon
+                        kind={o.kind}
+                        milestoneType={viewingMilestone.milestoneType}
+                        className={`w-4 h-4 shrink-0 ${o.kind === 'Birthday' ? 'text-amber-500' : 'text-navy-600'}`}
+                      />
+                      {o.kind === 'Birthday' ? 'Birthday' : o.label}
+                      {o.years ? ` — ${o.years} year${o.years === 1 ? '' : 's'}` : ''}
+                    </span>
+                    <span className="text-xs text-slate-500 shrink-0">
+                      {MONTHS[o.month - 1]} {o.day} · {o.daysUntil === 0 ? 'today' : `in ${o.daysUntil} day(s)`}
+                    </span>
+                  </div>
+                ))}
+                {(viewingMilestone.occurrences || []).length === 0 && (
+                  <p className="text-xs text-slate-400">Nothing dated yet.</p>
+                )}
+              </div>
+            </div>
+
+            {viewingMilestone.favouriteQuote && (
+              <p className="text-sm text-slate-600 italic border-l-2 border-slate-200 pl-3">
+                “{viewingMilestone.favouriteQuote}”
+              </p>
+            )}
+            {viewingMilestone.notes && (
+              <p className="text-sm text-slate-600 whitespace-pre-wrap">{viewingMilestone.notes}</p>
+            )}
+          </div>
+        )}
+      </Modal>
     </div>
   );
 };

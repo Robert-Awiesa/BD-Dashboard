@@ -69,8 +69,12 @@ const EventWizardModal = ({ open, onClose, onSubmit, submitting, initialData, sc
       if (form.endDate && new Date(form.endDate) < new Date(form.startDate)) {
         return 'End date cannot be before the start date.';
       }
-      if (form.modality !== 'Online' && !form.locationDetails.trim()) {
+      // Hybrid has to answer both questions; the other two answer one each.
+      if (form.modality !== 'Virtual' && !form.locationDetails.trim()) {
         return 'Venue details are required for physical or hybrid events.';
+      }
+      if (form.modality !== 'Physical' && !form.streamingLink.trim()) {
+        return 'A streaming or meeting link is required for virtual or hybrid events.';
       }
     }
     return null;
@@ -186,14 +190,25 @@ const EventWizardModal = ({ open, onClose, onSubmit, submitting, initialData, sc
                     {MODALITIES.map((m) => <option key={m} value={m}>{m}</option>)}
                   </select>
                 </div>
-                <div className="md:col-span-2">
-                  <label className="block text-xs text-slate-600 mb-1">
-                    {form.modality === 'Online' ? 'Streaming / Meeting Link' : 'Venue / Location'}
-                    {form.modality !== 'Online' ? ' *' : ''}
-                  </label>
-                  <input type="text" value={form.locationDetails} onChange={onInput('locationDetails')} className="w-full form-input"
-                    placeholder={form.modality === 'Online' ? 'Zoom / YouTube Live / StreamYard URL' : 'e.g. Accra International Conference Centre'} />
-                </div>
+                {/* Hybrid needs both — people join from a room and from a
+                    link — so the two are separate fields rather than one that
+                    changes meaning with the modality. */}
+                {form.modality !== 'Physical' && (
+                  <div className={form.modality === 'Hybrid' ? '' : 'md:col-span-2'}>
+                    <label className="block text-xs text-slate-600 mb-1">
+                      Streaming / Meeting Link *
+                    </label>
+                    <input type="text" value={form.streamingLink} onChange={onInput('streamingLink')} className="w-full form-input"
+                      placeholder="Zoom / YouTube Live / StreamYard URL" />
+                  </div>
+                )}
+                {form.modality !== 'Virtual' && (
+                  <div className={form.modality === 'Hybrid' ? '' : 'md:col-span-2'}>
+                    <label className="block text-xs text-slate-600 mb-1">Venue / Location *</label>
+                    <input type="text" value={form.locationDetails} onChange={onInput('locationDetails')} className="w-full form-input"
+                      placeholder="e.g. Accra International Conference Centre" />
+                  </div>
+                )}
               </div>
 
               <div>

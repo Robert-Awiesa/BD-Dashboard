@@ -16,7 +16,14 @@ router.get('/', async (req, res) => {
 router.post('/upload/:ownerType/:ownerId', uploadMedia.single('mediaFile'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ message: 'No file uploaded' });
-    const kind = req.file.mimetype.startsWith('image/') ? 'Photo' : 'Audio';
+    // Video uploads are allowed now, so "not an image" no longer means audio.
+    // Match on extension too: uploads can arrive as application/octet-stream.
+    const ext = (req.file.originalname.match(/\.[^.]+$/) || [''])[0].toLowerCase();
+    const isVideo = req.file.mimetype.startsWith('video/')
+      || ['.mp4', '.mov', '.avi', '.mkv', '.webm', '.m4v'].includes(ext);
+    const kind = req.file.mimetype.startsWith('image/')
+      ? 'Photo'
+      : isVideo ? 'Video' : 'Audio';
     const owner = await bdService.addMediaItem(req.params.ownerType, req.params.ownerId, {
       url: `/uploads/media/${req.file.filename}`,
       label: req.body.label || req.file.originalname,

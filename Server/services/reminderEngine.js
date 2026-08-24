@@ -112,40 +112,54 @@ async function evaluateEvents(today, todayKey, results) {
 }
 
 // --- Milestones: recurring birthdays / anniversaries, 2 days of lead time ---
+// A team member record carries two dates — a birthday and a work anniversary —
+// and the Reminder collection holds at most one row per (source, day). So when
+// both land in the window they become one combined message, the same way a
+// client with several problems does, rather than one silently overwriting
+// the other.
 async function evaluateMilestones(today, todayKey, results) {
-  const milestones = await Milestone.find({ active: true }).populate('client', 'name accountOwner');
+  const milestones = await Milestone.find({ active: true, isDraft: { $ne: true } })
+    .populate('client', 'name accountOwner');
 
   for (const milestone of milestones) {
-    const days = milestone.daysUntil;
-    if (days === null || days < 0 || days > REMINDER_LEAD_DAYS) continue;
-
-    const when = days === 0 ? 'today' : `in ${days} day(s)`;
-    const years = milestone.yearsCompleted;
     const who = milestone.departmentOrCompany
       ? `${milestone.participantName} (${milestone.departmentOrCompany})`
       : milestone.participantName;
 
-    let message;
-    if (milestone.milestoneType === 'Work Anniversary' && years) {
-      message = `🎉 ${who} celebrates their ${years}-year work anniversary ${when}.`;
-    } else if (milestone.milestoneType === 'Partner Milestone') {
-      message = `🤝 Partner milestone ${when}: ${who}${years ? ` — ${years} year(s)` : ''}.`;
-    } else if (milestone.milestoneType === 'Client Anniversary') {
-      message = `🤝 ${milestone.participantName} reaches ${years ? `${years} year(s)` : 'an anniversary'} with us ${when} — worth a note.`;
-    } else if (milestone.milestoneType === 'Client Contact Birthday') {
-      const account = milestone.client?.name || milestone.departmentOrCompany;
-      message = `🎂 ${milestone.participantName}${account ? ` (${account})` : ''} has a birthday ${when}.`;
-    } else {
-      message = `🎂 ${who}'s birthday is ${when}.`;
-    }
+    const due = milestone.occurrences.filter(
+      (o) => o.daysUntil !== null && o.daysUntil >= 0 && o.daysUntil <= REMINDER_LEAD_DAYS
+    );
+    if (due.length === 0) continue;
+
+    const parts = due.map((o) => {
+      const when = o.daysUntil === 0 ? 'today' : `in ${o.daysUntil} day(s)`;
+
+      if (o.kind === 'Birthday') {
+        if (milestone.milestoneType === 'Client Contact Birthday') {
+          const account = milestone.client?.name || milestone.departmentOrCompany;
+          return `🎂 ${milestone.participantName}${account ? ` (${account})` : ''} has a birthday ${when}`;
+        }
+        return `🎂 ${who}'s birthday is ${when}`;
+      }
+
+      if (milestone.milestoneType === 'Client Anniversary') {
+        return `🤝 ${milestone.participantName} reaches ${o.years ? `${o.years} year(s)` : 'an anniversary'} with us ${when} — worth a note`;
+      }
+      if (milestone.milestoneType === 'Partner Milestone') {
+        return `🤝 Partner milestone ${when}: ${who}${o.years ? ` — ${o.years} year(s)` : ''}`;
+      }
+      return `🎉 ${who} celebrates ${o.years ? `their ${o.years}-year` : 'a'} work anniversary ${when}`;
+    });
+
+    const soonest = Math.min(...due.map((o) => o.daysUntil));
 
     results.push(await upsertReminder({
       sourceType: 'Milestone',
       sourceId: milestone._id,
       sourceLabel: milestone.participantName,
       reminderDate: todayKey,
-      reminderType: days === 0 ? 'today' : 'upcoming',
-      message,
+      reminderType: soonest === 0 ? 'today' : 'upcoming',
+      message: `${parts.join('; ')}.`,
       responsiblePerson: milestone.client?.accountOwner || milestone.departmentOrCompany,
     }));
   }

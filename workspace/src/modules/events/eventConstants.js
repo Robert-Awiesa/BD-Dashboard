@@ -1,6 +1,7 @@
 export const EVENT_TYPES = [
   'External Conference',
   'Internal DG Briefing',
+  'Internal Briefing',
   'Webinar',
   'Podcast',
   'Strategic Alignment',
@@ -16,26 +17,49 @@ export const EVENT_FILTERS = [
   { key: 'all', label: 'All', types: null },
   { key: 'external', label: 'External Conferences', types: ['External Conference'] },
   { key: 'dg', label: 'Internal DG Briefings', types: ['Internal DG Briefing'] },
+  { key: 'briefing', label: 'Internal Briefings', types: ['Internal Briefing'] },
   { key: 'media', label: 'Webinars & Podcasts', types: ['Webinar', 'Podcast'] },
   { key: 'strategic', label: 'Strategic Alignment', types: ['Strategic Alignment', 'General Event'] },
 ];
 
-export const MODALITIES = ['Online', 'Physical', 'Hybrid'];
-export const MODALITY_ICON = { Online: '💻', Physical: '📍', Hybrid: '🔀' };
+export const MODALITIES = ['Virtual', 'Physical', 'Hybrid'];
+export const MODALITY_ICON = { Virtual: '💻', Physical: '📍', Hybrid: '🔀' };
 
 export const ATTENDEE_ROLES = ['Attendee', 'Speaker', 'Organizer', 'Booth Lead'];
 export const RSVP_STATUSES = ['Confirmed', 'Pending', 'Declined'];
 
 export const MILESTONE_TYPES = [
-  'Team Birthday',
-  'Work Anniversary',
+  'Team Member',
   'Partner Milestone',
   'VIP Stakeholder Birthday',
 ];
 
+// Mirrors TYPE_RULES in Server/models/Milestone.js, which enforces them.
+// `anchor: 'start'` means the recurring date is read off the start date rather
+// than typed in — a partnership anniversary IS the day it began.
+export const MILESTONE_RULES = {
+  'Team Member': {
+    anchor: 'birth',
+    startDate: 'required',
+    startLabel: 'Work start date',
+    startHint: 'The day they joined. Their work anniversary is counted from this.',
+  },
+  'Partner Milestone': {
+    anchor: 'start',
+    startDate: 'required',
+    startLabel: 'Partnership start date',
+    startHint: 'The anniversary falls on this date each year.',
+  },
+  'VIP Stakeholder Birthday': {
+    anchor: 'birth',
+    startDate: 'none',
+    startLabel: '',
+    startHint: '',
+  },
+};
+
 export const MILESTONE_ICON = {
-  'Team Birthday': '🎂',
-  'Work Anniversary': '🏆',
+  'Team Member': '🎂',
   'Partner Milestone': '🤝',
   'VIP Stakeholder Birthday': '⭐',
 };
@@ -57,7 +81,8 @@ export const emptyEventForm = {
   description: '',
   startDate: '',
   endDate: '',
-  modality: 'Online',
+  modality: 'Virtual',
+  streamingLink: '',
   locationDetails: '',
   assignedLead: '',
   episodeNumber: '',
@@ -70,13 +95,14 @@ export const emptyEventForm = {
 };
 
 export const emptyMilestoneForm = {
-  milestoneType: 'Team Birthday',
+  milestoneType: 'Team Member',
   participantName: '',
   departmentOrCompany: '',
   role: '',
   milestoneMonth: 1,
   milestoneDay: 1,
   originalStartDate: '',
+  isDraft: false,
   favouriteQuote: '',
   notes: '',
 };

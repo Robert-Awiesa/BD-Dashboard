@@ -33,15 +33,17 @@ const EventCard = ({ event, onEdit, onDelete, onToggleTask, onUpdateAttendee, on
           {event.assignedLead && <span>👤 {event.assignedLead}</span>}
         </div>
 
-        {event.locationDetails && (
-          event.modality === 'Online' ? (
-            <a href={event.locationDetails} target="_blank" rel="noopener noreferrer" className="text-xs text-navy-700 hover:underline break-all inline-block">
+        {/* A hybrid event shows both, because attendees pick one. */}
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          {event.streamingLink && (
+            <a href={event.streamingLink} target="_blank" rel="noopener noreferrer" className="text-xs text-navy-700 hover:underline break-all">
               🔗 Join link
             </a>
-          ) : (
+          )}
+          {event.locationDetails && (
             <p className="text-xs text-slate-500">📍 {event.locationDetails}</p>
-          )
-        )}
+          )}
+        </div>
 
         {(event.linkedScript || event.linkedCampaign) && (
           <div className="flex flex-wrap gap-1.5">

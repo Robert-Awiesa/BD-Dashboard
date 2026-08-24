@@ -21,7 +21,7 @@ const AddMediaModal = ({ open, onClose, events = [], milestones = [], onSaved })
   const [label, setLabel] = useState('');
   const [url, setUrl] = useState('');
   const [kind, setKind] = useState('Video');
-  const [file, setFile] = useState(null);
+  const [files, setFiles] = useState([]);
   const [dragActive, setDragActive] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
@@ -37,38 +37,68 @@ const AddMediaModal = ({ open, onClose, events = [], milestones = [], onSaved })
 
   const reset = () => {
     setMode('upload'); setOwner(''); setLabel(''); setUrl('');
-    setKind('Video'); setFile(null); setError(null); setLinkRequest(null);
+    setKind('Video'); setFiles([]); setError(null); setLinkRequest(null);
   };
 
   const handleClose = () => { reset(); onClose(); };
 
-  const pickFile = (f) => {
-    if (!f) return;
+  // Takes a whole FileList: an event shoot is a batch of photos and clips, not
+  // one file at a time. Size is the only thing that sends a file to the link
+  // flow now — video that fits is stored like anything else.
+  const pickFiles = (list) => {
+    const chosen = Array.from(list || []);
+    if (chosen.length === 0) return;
     setError(null);
-    const sizeMB = f.size / 1024 / 1024;
-    const isVideo = f.type.startsWith('video/') || VIDEO_EXT.test(f.name);
-    const tooBig = f.size > MAX_MB * 1024 * 1024;
 
-    // Rather than dead-ending on an error, hand the user straight to the link
-    // flow with the reason, a pre-filled label and the right media type.
-    if (isVideo || tooBig) {
-      setFile(null);
-      setKind(kindForFile(f));
-      setLabel((prev) => prev || f.name.replace(/\.[^.]+$/, ''));
-      setLinkRequest({ fileName: f.name, sizeMB, reason: isVideo ? 'video' : 'size' });
-      setMode('link');
-      return;
+    const tooBig = chosen.filter((f) => f.size > MAX_MB * 1024 * 1024);
+    const wrongKind = chosen.filter(
+      (f) => !tooBig.includes(f)
+        && !f.type.startsWith('image/')
+        && !f.type.startsWith('audio/')
+        && !f.type.startsWith('video/')
+        && !VIDEO_EXT.test(f.name)
+    );
+    const usable = chosen.filter((f) => !tooBig.includes(f) && !wrongKind.includes(f));
+
+    if (wrongKind.length) {
+      setError(
+        `${wrongKind.map((f) => f.name).join(', ')} — only photos, audio and video can be uploaded.`
+      );
     }
 
-    if (!f.type.startsWith('image/') && !f.type.startsWith('audio/')) {
-      setError('Only photos and audio files can be uploaded. Use a link for anything else.');
-      return;
+    // Anything over the cap cannot be hosted here, so hand the user straight
+    // to the link flow with the reason rather than dead-ending on an error.
+    if (tooBig.length) {
+      const first = tooBig[0];
+      setKind(kindForFile(first));
+      setLabel((prev) => prev || first.name.replace(/\.[^.]+$/, ''));
+      setLinkRequest({
+        fileName: tooBig.map((f) => f.name).join(', '),
+        sizeMB: first.size / 1024 / 1024,
+        reason: 'size',
+        count: tooBig.length,
+      });
+      if (usable.length === 0) {
+        setFiles([]);
+        setMode('link');
+        return;
+      }
+    } else {
+      setLinkRequest(null);
     }
 
-    setLinkRequest(null);
-    setFile(f);
-    if (!label) setLabel(f.name);
+    setFiles((prev) => {
+      const merged = [...prev];
+      for (const f of usable) {
+        if (!merged.some((m) => m.name === f.name && m.size === f.size)) merged.push(f);
+      }
+      return merged;
+    });
+    if (!label && usable.length === 1) setLabel(usable[0].name);
   };
+
+  const removeFile = (name, size) =>
+    setFiles((prev) => prev.filter((f) => !(f.name === name && f.size === size)));
 
   const save = async () => {
     setError(null);
@@ -78,8 +108,12 @@ const AddMediaModal = ({ open, onClose, events = [], milestones = [], onSaved })
     setBusy(true);
     try {
       if (mode === 'upload') {
-        if (!file) return setError('Choose a photo or audio file first.');
-        await bdApi.uploadMediaFile(ownerType, ownerId, file, label);
+        if (files.length === 0) return setError('Choose at least one file first.');
+        // One request each: a partial failure then leaves the successful
+        // uploads in place rather than losing the whole batch.
+        for (const f of files) {
+          await bdApi.uploadMediaFile(ownerType, ownerId, f, files.length === 1 ? label : f.name);
+        }
       } else {
         if (!url.trim()) return setError('Paste a link.');
         await bdApi.addMediaLink(ownerType, ownerId, { url: url.trim(), label, kind });
@@ -155,32 +189,58 @@ const AddMediaModal = ({ open, onClose, events = [], milestones = [], onSaved })
         </div>
 
         {mode === 'upload' ? (
-          <div
-            onDragOver={(e) => { e.preventDefault(); setDragActive(true); }}
-            onDragLeave={() => setDragActive(false)}
-            onDrop={(e) => { e.preventDefault(); setDragActive(false); pickFile(e.dataTransfer.files?.[0]); }}
-            onClick={() => fileRef.current?.click()}
-            className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-colors ${
-              dragActive ? 'border-navy-500 bg-navy-50'
-                : file ? 'border-forest-300 bg-forest-50/50 hover:border-forest-400'
-                : 'border-slate-300 hover:border-navy-400 hover:bg-slate-50 bg-white'
-            }`}
-          >
-            {/* Video and oversize files are accepted by the picker on purpose —
-                pickFile catches them and switches to the guided link flow. */}
-            <input ref={fileRef} type="file" accept="image/*,audio/*,video/*" className="hidden" onChange={(e) => pickFile(e.target.files?.[0])} />
-            {file ? (
-              <p className="text-sm text-navy-700">
-                {file.type.startsWith('image/') ? '🖼' : '🎙'} {file.name}
-                <span className="text-xs text-slate-500 ml-2">{(file.size / 1024 / 1024).toFixed(1)}MB</span>
+          <div className="space-y-2">
+            <div
+              onDragOver={(e) => { e.preventDefault(); setDragActive(true); }}
+              onDragLeave={() => setDragActive(false)}
+              onDrop={(e) => { e.preventDefault(); setDragActive(false); pickFiles(e.dataTransfer.files); }}
+              onClick={() => fileRef.current?.click()}
+              className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-colors ${
+                dragActive ? 'border-navy-500 bg-navy-50'
+                  : files.length ? 'border-forest-300 bg-forest-50/50 hover:border-forest-400'
+                  : 'border-slate-300 hover:border-navy-400 hover:bg-slate-50 bg-white'
+              }`}
+            >
+              {/* Oversize files are accepted by the picker on purpose — pickFiles
+                  catches them and switches to the guided link flow. */}
+              <input
+                ref={fileRef}
+                type="file"
+                multiple
+                accept="image/*,audio/*,video/*"
+                className="hidden"
+                onChange={(e) => pickFiles(e.target.files)}
+              />
+              <p className="text-sm text-slate-500">
+                Drag &amp; drop photos, video or audio — or click to browse
               </p>
-            ) : (
-              <>
-                <p className="text-sm text-slate-500">Drag &amp; drop a photo or audio file, or click to browse</p>
-                <p className="text-[11px] text-slate-400 mt-1">
-                  Up to {MAX_MB}MB. Drop a video or anything larger and we'll ask you for a link instead.
-                </p>
-              </>
+              <p className="text-[11px] text-slate-400 mt-1">
+                Select as many as you like. Up to {MAX_MB}MB each; anything larger
+                and we&apos;ll ask you for a link instead.
+              </p>
+            </div>
+
+            {files.length > 0 && (
+              <ul className="border border-slate-200 rounded-lg divide-y divide-slate-100">
+                {files.map((f) => (
+                  <li key={`${f.name}-${f.size}`} className="flex items-center justify-between gap-2 px-3 py-1.5">
+                    <span className="text-sm text-navy-800 truncate min-w-0">
+                      {f.type.startsWith('image/') ? '🖼' : f.type.startsWith('video/') ? '🎬' : '🎙'} {f.name}
+                    </span>
+                    <span className="flex items-center gap-2 shrink-0">
+                      <span className="text-xs text-slate-500">{(f.size / 1024 / 1024).toFixed(1)}MB</span>
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); removeFile(f.name, f.size); }}
+                        aria-label={`Remove ${f.name}`}
+                        className="text-slate-400 hover:text-red-600 cursor-pointer text-xs"
+                      >
+                        ✕
+                      </button>
+                    </span>
+                  </li>
+                ))}
+              </ul>
             )}
           </div>
         ) : (
@@ -188,12 +248,12 @@ const AddMediaModal = ({ open, onClose, events = [], milestones = [], onSaved })
             {linkRequest && (
               <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg space-y-1">
                 <p className="text-xs font-semibold text-amber-900">
-                  {linkRequest.reason === 'size'
-                    ? `This file is too large to store here (${linkRequest.sizeMB.toFixed(0)}MB, limit ${MAX_MB}MB)`
-                    : 'Video is not stored in the app'}
+                  {linkRequest.count > 1
+                    ? `${linkRequest.count} files are too large to store here (limit ${MAX_MB}MB each)`
+                    : `This file is too large to store here (${linkRequest.sizeMB.toFixed(0)}MB, limit ${MAX_MB}MB)`}
                 </p>
                 <p className="text-xs text-amber-800 break-all">
-                  <span className="font-medium">{linkRequest.fileName}</span> — upload it to SharePoint, YouTube or Drive, then paste the link below so it still appears in the archive.
+                  <span className="font-medium">{linkRequest.fileName}</span> — upload {linkRequest.count > 1 ? 'them' : 'it'} to SharePoint, YouTube or Drive, then paste the link below so {linkRequest.count > 1 ? 'they' : 'it'} still appears in the archive.
                 </p>
               </div>
             )}

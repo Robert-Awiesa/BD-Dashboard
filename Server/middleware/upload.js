@@ -89,16 +89,17 @@ const mediaFileFilter = (req, file, cb) => {
   const isImage = file.mimetype.startsWith('image/');
   const isAudio = file.mimetype.startsWith('audio/') || ['.mp3', '.m4a', '.wav', '.aac', '.ogg'].includes(ext);
 
-  if (isImage || isAudio) return cb(null, true);
-
   // Match on extension as well as mimetype — uploads arriving as
-  // application/octet-stream should still get the specific video guidance.
+  // application/octet-stream should still be recognised.
   const isVideo = file.mimetype.startsWith('video/')
     || ['.mp4', '.mov', '.avi', '.mkv', '.webm', '.m4v'].includes(ext);
-  if (isVideo) {
-    return cb(new Error('Video is not uploaded here — add the recording as a link (SharePoint, YouTube or Drive) instead.'));
-  }
-  cb(new Error('Only image or audio files can be uploaded. Use a link for anything else.'));
+
+  // Video is allowed now. Size is the real constraint, and multer enforces it
+  // with MEDIA_MAX_BYTES — a clip that fits belongs in the archive as much as
+  // a photo does. Anything larger is turned into a link request by the UI.
+  if (isImage || isAudio || isVideo) return cb(null, true);
+
+  cb(new Error('Only image, audio or video files can be uploaded. Use a link for anything else.'));
 };
 
 exports.uploadMedia = multer({

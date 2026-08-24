@@ -3,12 +3,13 @@ const mongoose = require('mongoose');
 const EVENT_TYPES = [
   'External Conference',
   'Internal DG Briefing',
+  'Internal Briefing',
   'Webinar',
   'Podcast',
   'Strategic Alignment',
   'General Event',
 ];
-const MODALITIES = ['Online', 'Physical', 'Hybrid'];
+const MODALITIES = ['Virtual', 'Physical', 'Hybrid'];
 const ATTENDEE_ROLES = ['Attendee', 'Speaker', 'Organizer', 'Booth Lead'];
 const RSVP_STATUSES = ['Confirmed', 'Pending', 'Declined'];
 const MEDIA_KINDS = ['Photo', 'Video', 'Audio', 'Document', 'Link'];
@@ -59,8 +60,11 @@ const eventSchema = new mongoose.Schema(
     description: { type: String, default: '' },
     startDate: { type: Date, required: true },
     endDate: { type: Date },
-    modality: { type: String, enum: MODALITIES, default: 'Online' },
+    modality: { type: String, enum: MODALITIES, default: 'Virtual' },
+    // Hybrid needs both: people join from a room AND from a link, so one
+    // reused field could only ever hold half the answer.
     locationDetails: { type: String, default: '' },
+    streamingLink: { type: String, default: '' },
     assignedLead: { type: String, default: '' },
 
     // Stage 2 — media production fields (Webinar / Podcast only)
