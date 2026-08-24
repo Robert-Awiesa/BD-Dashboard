@@ -21,7 +21,7 @@ export const PLATFORM_KEYS = PLATFORMS.map((p) => p.key);
 
 export const POST_TYPES = ['Reel', 'Carousel', 'Static', 'Story', 'Video', 'Text Post'];
 
-export const SHOT_TYPES = ['Talking Head', 'B-Roll', 'Screen Recording', 'Interview', 'Voiceover'];
+export const SHOT_TYPES = ['B-Roll', 'Interview', 'Voiceover'];
 
 export const CONTENT_STATUSES = ['Scheduled', 'Scripted', 'Published', 'Archived'];
 
