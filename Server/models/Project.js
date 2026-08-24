@@ -11,6 +11,14 @@ const projectSchema = new mongoose.Schema(
     name: { type: String, required: true, trim: true },
     description: { type: String, default: '' },
     owner: { type: String, default: '' },
+    // Everyone working on it. `owner` stays the single accountable lead —
+    // "My Work" filters on it — and this is the rest of the team, so a project
+    // can be assigned to several people without losing who is answerable.
+    assignees: [{ type: String }],
+
+    // When the work actually begins. A project with only a target date says
+    // when it must land but not whether it has started.
+    startDate: { type: Date },
     targetDate: { type: Date },
     status: { type: String, enum: PROJECT_STATUSES, default: 'Active' },
     archived: { type: Boolean, default: false },

@@ -159,6 +159,10 @@ exports.createProject = async (data) => {
     name,
     description: data.description || '',
     owner: data.owner || '',
+    assignees: Array.isArray(data.assignees)
+      ? data.assignees.map((a) => String(a).trim()).filter(Boolean)
+      : [],
+    startDate: data.startDate || undefined,
     targetDate: data.targetDate || undefined,
     status: data.status || 'Active',
   });
@@ -166,6 +170,10 @@ exports.createProject = async (data) => {
 
 exports.updateProject = async (id, data) => {
   const { _id, ...updates } = data;
+  if (Array.isArray(updates.assignees)) {
+    updates.assignees = updates.assignees.map((a) => String(a).trim()).filter(Boolean);
+  }
+  if (updates.startDate === '') updates.startDate = null;
   if (updates.targetDate === '') updates.targetDate = null;
   const updated = await Project.findByIdAndUpdate(id, updates, { returnDocument: 'after', runValidators: true });
   if (!updated) throw new Error('Project not found');

@@ -664,6 +664,24 @@ export const bdApi = {
   },
 
   // Team & stakeholder milestones
+  // Everyone who has ever been set as the person recording something: the
+  // registered Team Member milestones plus every name typed into the picker.
+  async getTeamRoster() {
+    const response = await fetch(`${API_BASE_URL}/team`);
+    return handleResponse(response);
+  },
+
+  // Idempotent — the picker calls it whenever somebody types a name, so the
+  // roster is shared instead of living in one browser's localStorage.
+  async addTeamMember(name) {
+    const response = await fetch(`${API_BASE_URL}/team`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name }),
+    });
+    return handleResponse(response);
+  },
+
   async getMilestones(filters = {}) {
     const params = new URLSearchParams();
     if (filters.milestoneType) params.set('milestoneType', filters.milestoneType);

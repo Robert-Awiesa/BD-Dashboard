@@ -103,6 +103,7 @@ mount('/api/social-content', './routes/socialContentRoutes');
 mount('/api/campaigns', './routes/campaignRoutes');
 mount('/api/events', './routes/eventRoutes');
 mount('/api/milestones', './routes/milestoneRoutes');
+mount('/api/team', './routes/teamRoutes');
 mount('/api/dg-event', './routes/dgEventRoutes');
 mount('/api/reminders', './routes/reminderRoutes');
 mount('/api/media', './routes/mediaRoutes');

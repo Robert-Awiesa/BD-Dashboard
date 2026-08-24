@@ -1,5 +1,6 @@
 import Button from '../common/Button';
 import { useDashboard } from '../../context/hooks/DashboardContext';
+import TeamMemberPicker from './TeamMemberPicker';
 
 const Header = ({ onQuickAdd }) => {
   const { serverConnected, serverStatusMessage, mobileSidebarOpen, setMobileSidebarOpen } = useDashboard();
@@ -42,6 +43,8 @@ const Header = ({ onQuickAdd }) => {
             {serverStatusMessage}
           </span>
         </div>
+        {/* Who is filing this — every module stamps it onto what you record. */}
+        <TeamMemberPicker />
         <Button variant="primary" onClick={onQuickAdd} className="text-xs py-1.5 px-2.5 sm:px-3 font-semibold shadow-navy-900/10 shadow-lg whitespace-nowrap">
           <span className="hidden sm:inline">+ Quick Log</span>
           <span className="sm:hidden">+ Log</span>

@@ -94,6 +94,8 @@ export const emptyProjectForm = {
   name: '',
   description: '',
   owner: '',
+  assignees: [],
+  startDate: '',
   targetDate: '',
   status: 'Active',
 };

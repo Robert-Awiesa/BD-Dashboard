@@ -437,7 +437,9 @@ const TasksModule = () => {
                         <span>{p.doneCount}/{p.taskCount} done</span>
                         <span>
                           {p.owner && `${p.owner} · `}
+                          {p.startDate ? `${formatDate(p.startDate)} → ` : ''}
                           {p.targetDate ? formatDate(p.targetDate) : 'no target'}
+                          {p.assignees?.length > 0 && ` · ${p.assignees.length} on it`}
                         </span>
                       </div>
                     </div>

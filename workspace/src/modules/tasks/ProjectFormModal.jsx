@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { bdApi } from '../../context/services/api';
 import Modal from '../../components/common/Modal';
 import Button from '../../components/common/Button';
@@ -9,14 +9,39 @@ const ProjectFormModal = ({ open, onClose, onSaved, currentUser, existing = null
 
   const [form, setForm] = useState(() =>
     existing
-      ? { ...emptyProjectForm, ...existing, targetDate: toDateInput(existing.targetDate) }
+      ? {
+          ...emptyProjectForm,
+          ...existing,
+          startDate: toDateInput(existing.startDate),
+          targetDate: toDateInput(existing.targetDate),
+        }
       : { ...emptyProjectForm, owner: currentUser || '' }
   );
+  const [roster, setRoster] = useState([]);
   const [submitting, setSubmitting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [error, setError] = useState(null);
 
+  useEffect(() => {
+    let ignore = false;
+    bdApi.getTeamRoster()
+      .then((rows) => { if (!ignore) setRoster(rows.map((r) => r.name).filter(Boolean)); })
+      .catch(() => { /* the owner field still accepts a typed name */ });
+    return () => { ignore = true; };
+  }, []);
+
   const update = (field) => (e) => setForm((f) => ({ ...f, [field]: e.target.value }));
+
+  const toggleAssignee = (name) =>
+    setForm((f) => {
+      const current = f.assignees || [];
+      return {
+        ...f,
+        assignees: current.includes(name)
+          ? current.filter((a) => a !== name)
+          : [...current, name],
+      };
+    });
 
   const submit = async (e) => {
     e.preventDefault();
@@ -108,9 +133,53 @@ const ProjectFormModal = ({ open, onClose, onSaved, currentUser, existing = null
               onChange={update('owner')} className="form-input"
             />
           </div>
+          <div className="sm:col-span-3">
+            <label className="form-label">Assigned to</label>
+            {roster.length === 0 ? (
+              <p className="text-xs text-slate-400">
+                No team members on the roster yet — add them from the header picker
+                or under Events &amp; Forums.
+              </p>
+            ) : (
+              <div className="flex flex-wrap gap-1.5">
+                {roster.map((name) => {
+                  const on = (form.assignees || []).includes(name);
+                  return (
+                    <button
+                      key={name}
+                      type="button"
+                      onClick={() => toggleAssignee(name)}
+                      aria-pressed={on}
+                      className={`px-2.5 py-1 rounded-full text-xs font-medium border cursor-pointer transition-colors ${
+                        on
+                          ? 'bg-navy-700 text-white border-navy-700'
+                          : 'bg-white text-slate-600 border-slate-300 hover:border-navy-400'
+                      }`}
+                    >
+                      {name}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+            <p className="text-xs text-slate-500 mt-1">
+              The owner above stays accountable; these are everyone working on it.
+            </p>
+          </div>
+
+          <div>
+            <label className="form-label">Start date</label>
+            <input
+              type="date" value={form.startDate} onChange={update('startDate')}
+              max={form.targetDate || undefined} className="form-input"
+            />
+          </div>
           <div>
             <label className="form-label">Target date</label>
-            <input type="date" value={form.targetDate} onChange={update('targetDate')} className="form-input" />
+            <input
+              type="date" value={form.targetDate} onChange={update('targetDate')}
+              min={form.startDate || undefined} className="form-input"
+            />
           </div>
           <div>
             <label className="form-label">Status</label>
