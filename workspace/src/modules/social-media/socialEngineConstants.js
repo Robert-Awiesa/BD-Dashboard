@@ -6,6 +6,17 @@ export const PLATFORMS = [
   { key: 'YouTube', label: 'YouTube', icon: '▶️', url: 'https://youtube.com/@tgtsafricaa?si=IQuVnqzYCi6GegbU' },
 ];
 
+// Somewhere we do not run a proper account. Kept out of PLATFORMS so the
+// platform cards and their links stay the five we actually maintain, but
+// selectable in every form that picks a platform.
+export const OTHER_PLATFORM = 'Other';
+
+export const PLATFORM_CHOICES = [...PLATFORMS.map((p) => p.key), OTHER_PLATFORM];
+
+// What to show for a post: the typed name when it was filed under Other.
+export const platformLabel = (entry) =>
+  (entry?.platform === OTHER_PLATFORM ? entry.platformOther : entry?.platform) || entry?.platform || '';
+
 export const PLATFORM_KEYS = PLATFORMS.map((p) => p.key);
 
 export const POST_TYPES = ['Reel', 'Carousel', 'Static', 'Story', 'Video', 'Text Post'];
@@ -16,6 +27,7 @@ export const CONTENT_STATUSES = ['Scheduled', 'Scripted', 'Published', 'Archived
 
 export const emptyScheduleForm = {
   platform: PLATFORMS[0].key,
+  platformOther: '',
   title: '',
   scheduleDate: '',
   time: '',
@@ -26,6 +38,7 @@ export const emptyScheduleForm = {
 
 export const emptyScriptForm = {
   platform: PLATFORMS[0].key,
+  platformOther: '',
   title: '',
   product: '',
   model: '',
@@ -38,6 +51,7 @@ export const emptyScriptForm = {
 
 export const emptyContentForm = {
   platform: PLATFORMS[0].key,
+  platformOther: '',
   title: '',
   postType: POST_TYPES[0],
   postLink: '',

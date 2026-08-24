@@ -3,7 +3,7 @@ import { bdApi } from '../../context/services/api';
 import Button from '../../components/common/Button';
 import Badge from '../../components/common/Badge';
 import FormCard from '../../components/common/FormCard';
-import { PLATFORMS, POST_TYPES, CONTENT_STATUSES, emptyContentForm } from './socialEngineConstants';
+import { PLATFORMS, OTHER_PLATFORM, platformLabel, POST_TYPES, CONTENT_STATUSES, emptyContentForm } from './socialEngineConstants';
 
 const ContentRepositoryTab = ({ entries, allTitles, loading, platformFilter, onCreated, onUpdated, onDeleted }) => {
   const [form, setForm] = useState(emptyContentForm);
@@ -132,7 +132,18 @@ const ContentRepositoryTab = ({ entries, allTitles, loading, platformFilter, onC
                 {PLATFORMS.map((p) => (
                   <option key={p.key} value={p.key}>{p.label}</option>
                 ))}
+                <option value={OTHER_PLATFORM}>Other…</option>
               </select>
+              {/* 'Other' means nothing without the name of the place. */}
+              {form.platform === OTHER_PLATFORM && (
+                <input
+                  type="text"
+                  value={form.platformOther}
+                  onChange={updateForm('platformOther')}
+                  placeholder="Which platform?"
+                  className="w-full form-input mt-2"
+                />
+              )}
             </div>
             <div className="md:col-span-2">
               <label className="block text-xs text-slate-600 mb-1">Title *</label>
@@ -240,7 +251,7 @@ const ContentRepositoryTab = ({ entries, allTitles, loading, platformFilter, onC
                       <Badge label={entry.status} status={entry.status === 'Published' ? 'success' : 'default'} />
                     </div>
                     <div className="flex items-center gap-2">
-                      <Badge label={entry.platform} status="active" />
+                      <Badge label={platformLabel(entry)} status="active" />
                       {entry.postType && <span className="text-xs text-slate-500">{entry.postType}</span>}
                     </div>
                     {entry.interestingSnippet && (

@@ -3,7 +3,7 @@ import { bdApi } from '../../context/services/api';
 import Button from '../../components/common/Button';
 import Badge from '../../components/common/Badge';
 import FormCard from '../../components/common/FormCard';
-import { PLATFORMS, POST_TYPES, emptyScheduleForm, dayOfWeekFromDate } from './socialEngineConstants';
+import { PLATFORMS, OTHER_PLATFORM, platformLabel, POST_TYPES, emptyScheduleForm, dayOfWeekFromDate } from './socialEngineConstants';
 
 const toDateInputValue = (value) => {
   if (!value) return '';
@@ -123,7 +123,18 @@ const ScheduleTab = ({ entries, allTitles, loading, platformFilter, onCreated, o
                 {PLATFORMS.map((p) => (
                   <option key={p.key} value={p.key}>{p.label}</option>
                 ))}
+                <option value={OTHER_PLATFORM}>Other…</option>
               </select>
+              {/* 'Other' means nothing without the name of the place. */}
+              {form.platform === OTHER_PLATFORM && (
+                <input
+                  type="text"
+                  value={form.platformOther}
+                  onChange={updateForm('platformOther')}
+                  placeholder="Which platform?"
+                  className="w-full form-input mt-2"
+                />
+              )}
             </div>
             <div className="md:col-span-2">
               <label className="block text-xs text-slate-600 mb-1">Title / Campaign Name *</label>
@@ -244,7 +255,7 @@ const ScheduleTab = ({ entries, allTitles, loading, platformFilter, onCreated, o
               ) : (
                 scheduledEntries.map((entry) => (
                   <tr key={entry._id} className="border-b border-slate-100 hover:bg-slate-50">
-                    <td className="px-3 py-2"><Badge label={entry.platform} status="active" /></td>
+                    <td className="px-3 py-2"><Badge label={platformLabel(entry)} status="active" /></td>
                     <td className="px-3 py-2 font-medium text-navy-900">{entry.title}</td>
                     <td className="px-3 py-2 text-slate-600">{toDateInputValue(entry.scheduleDate)}</td>
                     <td className="px-3 py-2 text-slate-600">{entry.dayOfWeek}</td>

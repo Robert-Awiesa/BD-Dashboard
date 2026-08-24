@@ -3,7 +3,7 @@ import { bdApi } from '../../context/services/api';
 import Button from '../../components/common/Button';
 import Badge from '../../components/common/Badge';
 import FormCard from '../../components/common/FormCard';
-import { PLATFORMS, SHOT_TYPES, emptyScriptForm } from './socialEngineConstants';
+import { PLATFORMS, OTHER_PLATFORM, platformLabel, SHOT_TYPES, emptyScriptForm } from './socialEngineConstants';
 
 const ACCEPTED_EXTENSIONS = ['.txt', '.doc', '.docx'];
 
@@ -132,7 +132,18 @@ const ScriptsTab = ({ entries, loading, platformFilter, onCreated, onUpdated, on
                 {PLATFORMS.map((p) => (
                   <option key={p.key} value={p.key}>{p.label}</option>
                 ))}
+                <option value={OTHER_PLATFORM}>Other…</option>
               </select>
+              {/* 'Other' means nothing without the name of the place. */}
+              {form.platform === OTHER_PLATFORM && (
+                <input
+                  type="text"
+                  value={form.platformOther}
+                  onChange={updateForm('platformOther')}
+                  placeholder="Which platform?"
+                  className="w-full form-input mt-2"
+                />
+              )}
             </div>
             <div className="md:col-span-2">
               <label className="block text-xs text-slate-600 mb-1">Title *</label>
@@ -232,7 +243,7 @@ const ScriptsTab = ({ entries, loading, platformFilter, onCreated, onUpdated, on
             <div key={entry._id} className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm flex flex-col gap-2">
               <div className="flex items-start justify-between gap-2">
                 <span className="font-semibold text-navy-900 text-sm">{entry.title}</span>
-                <Badge label={entry.platform} status="active" />
+                <Badge label={platformLabel(entry)} status="active" />
               </div>
               <p className="text-xs text-slate-600">{entry.product || '—'} {entry.model ? `· ${entry.model}` : ''}</p>
               <p className="text-xs text-slate-500">{entry.shotType}</p>

@@ -1,11 +1,16 @@
 const mongoose = require('mongoose');
 
-const PLATFORMS = ['TikTok', 'Instagram', 'LinkedIn', 'Facebook', 'YouTube'];
+// 'Other' keeps the enum honest while still letting the team post somewhere
+// new — the actual name goes in platformOther rather than being typed into the
+// enum, so reporting can still group on the five we run properly.
+const PLATFORMS = ['TikTok', 'Instagram', 'LinkedIn', 'Facebook', 'YouTube', 'Other'];
 
 const socialContentSchema = new mongoose.Schema(
   {
     // Shared Metadata
     platform: { type: String, enum: PLATFORMS, required: true },
+    // Only meaningful when platform is 'Other'.
+    platformOther: { type: String, default: '' },
     title: { type: String, required: true },
 
     // 1. Post Scheduling Fields
@@ -50,6 +55,13 @@ socialContentSchema.pre('findOneAndUpdate', function computeDayOfWeek() {
   if (update.scheduleDate) {
     update.dayOfWeek = new Date(update.scheduleDate).toLocaleDateString('en-US', { weekday: 'long' });
     this.setUpdate(update);
+  }
+});
+
+// 'Other' means nothing without the name of the place it was posted.
+socialContentSchema.pre('validate', function requirePlatformName() {
+  if (this.platform === 'Other' && !String(this.platformOther || '').trim()) {
+    this.invalidate('platformOther', 'Name the platform when choosing Other');
   }
 });
 
