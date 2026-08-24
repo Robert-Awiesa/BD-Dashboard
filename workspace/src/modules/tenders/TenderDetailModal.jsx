@@ -355,11 +355,10 @@ const TenderDetailModal = ({ open, onClose, tender, onEdit, onDelete, onChanged 
               <div className="space-y-3">
                 <div className="rounded-lg border border-slate-200 px-3 py-2">
                   <MetaRow label="Currency">{fdp.currency || '—'}</MetaRow>
-                  <MetaRow label="Pricing model">{fdp.pricingModel || '—'}</MetaRow>
-                  <MetaRow label="Estimated cost">{formatMoney(fdp.estimatedCost)}</MetaRow>
-                  <MetaRow label="Proposed price">{formatMoney(fdp.proposedPrice)}</MetaRow>
-                  <MetaRow label="Target margin %">{fdp.marginPct ? `${fdp.marginPct}%` : '—'}</MetaRow>
-                  {fdp.assumptions && <MetaRow label="Assumptions">{fdp.assumptions}</MetaRow>}
+                  <MetaRow label="Model">{fdp.model || '—'}</MetaRow>
+                  <MetaRow label="Users">{fdp.users || '—'}</MetaRow>
+                  <MetaRow label="BOM">{fdp.bom || '—'}</MetaRow>
+                  <MetaRow label="Implementation cost">{fdp.implementationCost || '—'}</MetaRow>
                 </div>
                 {fdp.notes && (
                   <div className="rounded-lg border border-slate-200 px-3 py-2.5">

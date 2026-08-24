@@ -8,6 +8,9 @@ import {
   SOURCES,
   SECTORS,
   SOURCE_REQUIREMENTS,
+  FDP_CURRENCIES,
+  BOM_OPTIONS,
+  IMPLEMENTATION_COST_STATES,
   emptyTenderForm,
   toDateInput,
 } from './tenderConstants';
@@ -105,13 +108,7 @@ const TenderFormModal = ({ open, onClose, onSaved, existing, owners = [], author
           individuals: form.pdp.individuals.filter((r) => r.name.trim() || r.responsibility.trim()),
           milestones: form.pdp.milestones.filter((m) => m.label.trim() || m.date),
         },
-        fdp: Object.fromEntries(
-          Object.entries(form.fdp).map(([k, v]) =>
-            ['estimatedCost', 'proposedPrice', 'marginPct'].includes(k)
-              ? [k, v === '' ? 0 : Number(v)]
-              : [k, v]
-          )
-        ),
+        fdp: form.fdp,
       };
       const saved = isEdit
         ? await bdApi.updateTender(existing._id, payload)
@@ -358,42 +355,47 @@ const TenderFormModal = ({ open, onClose, onSaved, existing, owners = [], author
           </div>
         </Section>
 
-        <Section title="FDP — Financial Development Plan" hint="Costing, pricing and the model behind the bid. Hidden in the detail view until opened.">
+        <Section title="FDP — Financial Development Plan" hint="What we would be quoting for: the SAP model, who it serves, and what has been settled.">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="form-label">Currency</label>
-              <input className="form-input" value={form.fdp.currency}
-                onChange={(e) => setFdp('currency', e.target.value)} placeholder="GHS" />
+              <select className="form-input" value={form.fdp.currency}
+                onChange={(e) => setFdp('currency', e.target.value)}>
+                <option value="">Select…</option>
+                {FDP_CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
+              </select>
             </div>
             <div>
-              <label className="form-label">Pricing model</label>
-              <input className="form-input" value={form.fdp.pricingModel}
-                onChange={(e) => setFdp('pricingModel', e.target.value)} placeholder="Fixed / unit rate / T&M" />
+              <label className="form-label">Model</label>
+              <input className="form-input" value={form.fdp.model}
+                onChange={(e) => setFdp('model', e.target.value)} placeholder="SAP S/4HANA" />
             </div>
             <div>
-              <label className="form-label">Estimated cost</label>
-              <input type="number" min="0" className="form-input" value={form.fdp.estimatedCost}
-                onChange={(e) => setFdp('estimatedCost', e.target.value)} placeholder="0" />
+              <label className="form-label">Users</label>
+              <input className="form-input" value={form.fdp.users}
+                onChange={(e) => setFdp('users', e.target.value)}
+                placeholder="Who will use the system" />
             </div>
             <div>
-              <label className="form-label">Proposed price</label>
-              <input type="number" min="0" className="form-input" value={form.fdp.proposedPrice}
-                onChange={(e) => setFdp('proposedPrice', e.target.value)} placeholder="0" />
+              <label className="form-label">BOM</label>
+              <select className="form-input" value={form.fdp.bom}
+                onChange={(e) => setFdp('bom', e.target.value)}>
+                <option value="">Select…</option>
+                {BOM_OPTIONS.map((b) => <option key={b} value={b}>{b}</option>)}
+              </select>
             </div>
             <div>
-              <label className="form-label">Target margin %</label>
-              <input type="number" min="0" className="form-input" value={form.fdp.marginPct}
-                onChange={(e) => setFdp('marginPct', e.target.value)} placeholder="20" />
-            </div>
-            <div>
-              <label className="form-label">Assumptions</label>
-              <input className="form-input" value={form.fdp.assumptions}
-                onChange={(e) => setFdp('assumptions', e.target.value)} placeholder="FX, materials, subcontract" />
+              <label className="form-label">Implementation cost</label>
+              <select className="form-input" value={form.fdp.implementationCost}
+                onChange={(e) => setFdp('implementationCost', e.target.value)}>
+                <option value="">Select…</option>
+                {IMPLEMENTATION_COST_STATES.map((x) => <option key={x} value={x}>{x}</option>)}
+              </select>
             </div>
             <div className="sm:col-span-2">
               <label className="form-label">FDP notes</label>
               <textarea className="form-input" rows="2" value={form.fdp.notes}
-                onChange={(e) => setFdp('notes', e.target.value)} placeholder="Margin pressure, exclusions, contingencies" />
+                onChange={(e) => setFdp('notes', e.target.value)} placeholder="Licensing questions, scope gaps, what is still to confirm" />
             </div>
           </div>
         </Section>

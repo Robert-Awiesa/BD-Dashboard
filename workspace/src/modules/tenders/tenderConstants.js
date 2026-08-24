@@ -8,6 +8,11 @@ export const TENDER_TYPES = ['Opened', 'Restrictive', 'Negotiated'];
 // The same list Cold Calls uses, so a sector means the same thing in both.
 export const SECTORS = ['Oil and Gas', 'Manufacturing', 'Mining', 'Logistics', 'Financial', 'Others'];
 
+// FDP vocabularies. Mirror Tender.js, which enforces them.
+export const FDP_CURRENCIES = ['GHS', 'USD'];
+export const BOM_OPTIONS = ['Yes', 'No'];
+export const IMPLEMENTATION_COST_STATES = ['Decided', 'Undecided', 'Under Review'];
+
 // Every source has to say how to get BACK to the tender. Mirrors
 // Tender.SOURCE_REQUIREMENTS on the server, which enforces it.
 export const SOURCE_REQUIREMENTS = {
@@ -143,7 +148,7 @@ export const emptyTenderForm = {
   currency: '',
   tags: [],
   pdp: { objectives: '', proposedSolution: '', milestones: [], individuals: [], progress: 0, notes: '' },
-  fdp: { currency: '', estimatedCost: '', proposedPrice: '', marginPct: '', pricingModel: '', assumptions: '', notes: '' },
+  fdp: { currency: '', model: '', users: '', bom: '', implementationCost: '', notes: '' },
   notes: '',
 };
 

@@ -88,15 +88,23 @@ const pdpSchema = new mongoose.Schema(
   { _id: false }
 );
 
-// Financial planning for the bid.
+// What we would be quoting for: the SAP model, how many people it has to
+// serve, and whether the costed pieces have been settled yet. Not a pricing
+// sheet — the numbers live in the Proposal once there is a bid.
+const FDP_CURRENCIES = ['GHS', 'USD'];
+const BOM_OPTIONS = ['Yes', 'No'];
+const IMPLEMENTATION_COST_STATES = ['Decided', 'Undecided', 'Under Review'];
+
 const fdpSchema = new mongoose.Schema(
   {
-    currency: { type: String, default: '' },
-    estimatedCost: { type: Number, default: 0 },
-    proposedPrice: { type: Number, default: 0 },
-    marginPct: { type: Number, default: 0 },
-    pricingModel: { type: String, default: '' },
-    assumptions: { type: String, default: '' },
+    currency: { type: String, enum: [...FDP_CURRENCIES, ''], default: '' },
+    // The SAP product, e.g. SAP S/4HANA — not a pricing model.
+    model: { type: String, default: '' },
+    // Who the system is for. Free text so it takes a seat count or a list of
+    // departments, whichever the notice actually specifies.
+    users: { type: String, default: '' },
+    bom: { type: String, enum: [...BOM_OPTIONS, ''], default: '' },
+    implementationCost: { type: String, enum: [...IMPLEMENTATION_COST_STATES, ''], default: '' },
     notes: { type: String, default: '' },
   },
   { _id: false }
@@ -222,15 +230,6 @@ tenderSchema.virtual('openMilestones').get(function () {
   return (this.pdp?.milestones || []).filter((m) => !m.done);
 });
 
-// Margin is derived rather than trusted: a stored marginPct drifts the moment
-// either price changes.
-tenderSchema.virtual('computedMarginPct').get(function () {
-  const price = this.fdp?.proposedPrice || 0;
-  const cost = this.fdp?.estimatedCost || 0;
-  if (!price) return null;
-  return Math.round(((price - cost) / price) * 1000) / 10;
-});
-
 tenderSchema.pre('save', function stampDates() {
   if (this.isModified('status')) {
     if (SUBMITTED_STATUSES.includes(this.status) && !this.submittedAt) {
@@ -251,6 +250,9 @@ tenderSchema.statics.CLOSED_STATUSES = CLOSED_STATUSES;
 tenderSchema.statics.SUBMITTED_STATUSES = SUBMITTED_STATUSES;
 tenderSchema.statics.SOURCES = SOURCES;
 tenderSchema.statics.SECTORS = SECTORS;
+tenderSchema.statics.FDP_CURRENCIES = FDP_CURRENCIES;
+tenderSchema.statics.BOM_OPTIONS = BOM_OPTIONS;
+tenderSchema.statics.IMPLEMENTATION_COST_STATES = IMPLEMENTATION_COST_STATES;
 tenderSchema.statics.SOURCE_REQUIREMENTS = SOURCE_REQUIREMENTS;
 tenderSchema.statics.CLOSING_SOON_DAYS = CLOSING_SOON_DAYS;
 
