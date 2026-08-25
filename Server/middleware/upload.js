@@ -1,5 +1,11 @@
 const multer = require('multer');
 const fileStore = require('../services/fileStore');
+const cloudinaryStore = require('../services/cloudinaryStore');
+
+// Cloudinary when it is configured, otherwise the database. Choosing per
+// upload rather than at boot means adding the credentials takes effect on the
+// next restart without a code change, and a local checkout needs no setup.
+const storeFor = () => (cloudinaryStore.isConfigured() ? cloudinaryStore : fileStore);
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
@@ -57,14 +63,23 @@ const makeStorage = (bucketName) => ({
     file.stream.on('error', cb);
     file.stream.on('end', async () => {
       try {
-        const saved = await fileStore.save(bucketName, {
+        const saved = await storeFor().save(bucketName, {
           originalname: file.originalname,
           mimetype: file.mimetype,
           size: bytes,
           buffer: Buffer.concat(chunks),
         });
-        // The same shape the disk engine produced.
-        cb(null, { filename: saved.filename, size: bytes, path: saved.url });
+        cb(null, {
+          filename: saved.filename,
+          size: bytes,
+          // `url` is what the routes store. It is a CDN address on Cloudinary
+          // and a /uploads/... path on GridFS, and neither route nor model
+          // needs to know which.
+          url: saved.url,
+          path: saved.url,
+          bucket: bucketName,
+          resourceType: saved.resourceType || null,
+        });
       } catch (err) {
         cb(err);
       }
@@ -74,7 +89,13 @@ const makeStorage = (bucketName) => ({
   // sit in the database forever.
   _removeFile(req, file, cb) {
     if (!file?.filename) return cb(null);
-    fileStore.remove(bucketName, file.filename).then(() => cb(null), cb);
+    const store = storeFor();
+    const done = () => cb(null);
+    if (store === cloudinaryStore) {
+      store.remove(bucketName, file.filename, file.resourceType || 'image').then(done, done);
+    } else {
+      store.remove(bucketName, file.filename).then(done, done);
+    }
   },
 });
 

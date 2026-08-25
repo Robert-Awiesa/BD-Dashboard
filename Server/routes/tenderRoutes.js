@@ -30,7 +30,7 @@ router.get('/meta', (req, res) => {
 router.post('/source-image', uploadTender.single('sourceImage'), (req, res) => {
   if (!req.file) return res.status(400).json({ message: 'No file uploaded' });
   res.status(201).json({
-    url: `/uploads/tenders/${req.file.filename}`,
+    url: req.file.url,
     fileName: req.file.originalname,
   });
 });

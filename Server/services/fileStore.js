@@ -123,8 +123,13 @@ exports.remove = async (bucketName, filename) => {
  * when multer itself refuses; a business-rule rejection afterwards left the
  * file behind with nothing pointing at it.
  */
-exports.removeQuietly = async (bucketName, filename) => {
+exports.removeQuietly = async (bucketName, filename, resourceType) => {
   try {
+    const cloudinaryStore = require('./cloudinaryStore');
+    if (cloudinaryStore.isConfigured()) {
+      await cloudinaryStore.remove(bucketName, filename, resourceType || 'image');
+      return;
+    }
     await exports.remove(bucketName, filename);
   } catch {
     // Cleanup must never turn a handled rejection into a 500.

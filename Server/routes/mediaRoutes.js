@@ -25,7 +25,7 @@ router.post('/upload/:ownerType/:ownerId', uploadMedia.single('mediaFile'), asyn
       ? 'Photo'
       : isVideo ? 'Video' : 'Audio';
     const owner = await bdService.addMediaItem(req.params.ownerType, req.params.ownerId, {
-      url: `/uploads/media/${req.file.filename}`,
+      url: req.file.url,
       label: req.body.label || req.file.originalname,
       kind,
     });

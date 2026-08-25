@@ -25,7 +25,7 @@ router.post('/:id/photos', uploadVisitPhoto.single('photo'), async (req, res) =>
   try {
     if (!req.file) return res.status(400).json({ message: 'No photo uploaded' });
     const updated = await fieldVisitService.addVisitPhoto(req.params.id, {
-      url: '/uploads/visits/' + req.file.filename,
+      url: req.file.url,
       caption: req.body.caption || '',
     });
     res.status(201).json(updated);

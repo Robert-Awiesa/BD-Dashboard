@@ -34,8 +34,8 @@ const fileStore = require('./services/fileStore');
 app.use((req, res, next) => {
   res.on('finish', () => {
     if (res.statusCode < 400 || !req.file?.filename) return;
-    const bucket = (req.file.path || '').split('/')[2];
-    if (bucket) fileStore.removeQuietly(bucket, req.file.filename);
+    const { bucket, filename, resourceType } = req.file;
+    if (bucket) fileStore.removeQuietly(bucket, filename, resourceType);
   });
   next();
 });

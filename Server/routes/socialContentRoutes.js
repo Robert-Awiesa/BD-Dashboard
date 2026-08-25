@@ -48,7 +48,7 @@ router.delete('/:id', async (req, res) => {
 router.post('/upload-script', uploadScript.single('scriptFile'), (req, res) => {
   if (!req.file) return res.status(400).json({ message: 'No file uploaded' });
   res.status(201).json({
-    scriptFileUrl: `/uploads/scripts/${req.file.filename}`,
+    scriptFileUrl: req.file.url,
     scriptFileName: req.file.originalname,
   });
 });
@@ -56,7 +56,7 @@ router.post('/upload-script', uploadScript.single('scriptFile'), (req, res) => {
 // POST a cover image — returns the stored URL
 router.post('/upload-cover', uploadCoverImage.single('coverImage'), (req, res) => {
   if (!req.file) return res.status(400).json({ message: 'No file uploaded' });
-  res.status(201).json({ coverImage: `/uploads/covers/${req.file.filename}` });
+  res.status(201).json({ coverImage: req.file.url });
 });
 
 // Multer error handler (file type / size rejections)

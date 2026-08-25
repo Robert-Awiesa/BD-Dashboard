@@ -64,7 +64,7 @@ router.get('/tags', async (req, res) => {
 router.post('/upload', uploadDocument.single('documentFile'), (req, res) => {
   if (!req.file) return res.status(400).json({ message: 'No file uploaded' });
   res.status(201).json({
-    fileUrl: '/uploads/documents/' + req.file.filename,
+    fileUrl: req.file.url,
     fileName: req.file.originalname,
     fileType: path.extname(req.file.originalname).replace('.', '').toUpperCase(),
     fileSize: formatBytes(req.file.size),

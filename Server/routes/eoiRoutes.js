@@ -80,7 +80,7 @@ router.post('/:id/attachment', uploadEoi.single('attachment'), async (req, res) 
     if (!req.file) return res.status(400).json({ message: 'No file uploaded' });
     const updated = await tenderService.updateEoi(req.params.id, {
       attachmentType: 'upload',
-      attachmentUrl: `/uploads/eois/${req.file.filename}`,
+      attachmentUrl: req.file.url,
       attachmentFileName: req.file.originalname,
     });
     res.status(201).json(updated);

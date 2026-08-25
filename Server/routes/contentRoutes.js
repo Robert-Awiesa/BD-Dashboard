@@ -77,7 +77,7 @@ router.get('/assets', async (req, res) => {
 router.post('/upload', uploadAsset.single('assetFile'), (req, res) => {
   if (!req.file) return res.status(400).json({ message: 'No file uploaded' });
   res.status(201).json({
-    fileUrl: '/uploads/assets/' + req.file.filename,
+    fileUrl: req.file.url,
     fileName: req.file.originalname,
     fileType: path.extname(req.file.originalname).replace('.', '').toUpperCase(),
     fileSize: formatBytes(req.file.size),
