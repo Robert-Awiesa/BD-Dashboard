@@ -47,6 +47,25 @@ async function run() {
 
   let migrated = 0;
   let carried = 0;
+  let repaired = 0;
+
+  // Repair pass, before anything else: a phase with no _id cannot be addressed
+  // at all, so stage actions fail. Fixing it in place keeps whatever has been
+  // added since, which rebuilding the stages would throw away.
+  for (const doc of docs) {
+    const missing = (doc.phases || []).some((p) => !p._id);
+    if (!missing) continue;
+    const phases = (doc.phases || []).map((p) => ({
+      ...p,
+      _id: p._id || new mongoose.Types.ObjectId(),
+      tasks: (p.tasks || []).map((t) => ({ ...t, _id: t._id || new mongoose.Types.ObjectId() })),
+      expenses: (p.expenses || []).map((e) => ({ ...e, _id: e._id || new mongoose.Types.ObjectId() })),
+    }));
+    await raw.updateOne({ _id: doc._id }, { $set: { phases } });
+    doc.phases = phases;
+    repaired += 1;
+    console.log(`  ${doc.dgEventTitle}: gave ${phases.length} stage(s) an id`);
+  }
 
   for (const doc of docs) {
     const already = (doc.phases || []).every((p) => NEW_STAGES.includes(p.name));
@@ -68,6 +87,7 @@ async function run() {
     }
 
     const phases = NEW_STAGES.map((name, idx) => ({
+      _id: new mongoose.Types.ObjectId(),
       name,
       order: idx + 1,
       summary: '',

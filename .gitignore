@@ -34,3 +34,6 @@ Thumbs.db
 *.njsproj
 *.sln
 *.sw?
+
+# Database backups taken before migrations — real data, never committed.
+Server/backups/
