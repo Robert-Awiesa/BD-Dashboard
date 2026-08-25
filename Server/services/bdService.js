@@ -71,8 +71,80 @@ exports.createProspectingLead = async (data) => {
   return ProspectingLead.create(data);
 };
 
+// insertMany({ordered:false}) silently drops rows that fail validation and
+// returns only the survivors, so a whole sheet could vanish behind
+// "Successfully imported 0 leads". Every row is now checked here and reported
+// by its spreadsheet row number, in the same shape the outreach importer uses.
+const leadText = (value) =>
+  value === null || value === undefined ? '' : String(value).trim();
+
+const validateLead = (row) => {
+  if (!leadText(row.company)) return 'company is required';
+  if (!leadText(row.contactPerson)) return 'contact person is required';
+  if (!leadText(row.primaryEmail)) return 'primary email is required';
+  if (!leadText(row.primaryContact)) return 'primary contact is required';
+
+  const industry = leadText(row.industry);
+  if (!industry) return 'industry is required';
+  if (!ProspectingLead.INDUSTRY_OPTIONS.includes(industry)) {
+    return `industry "${industry}" is not one of: ${ProspectingLead.INDUSTRY_OPTIONS.join(', ')}`;
+  }
+  if (industry === 'Others' && !leadText(row.customIndustry)) {
+    return 'industry is "Others", so the real industry is required';
+  }
+  return null;
+};
+
 exports.bulkCreateProspectingLeads = async (leads) => {
-  return ProspectingLead.insertMany(leads, { ordered: false });
+  if (!Array.isArray(leads) || leads.length === 0) {
+    throw new Error('No rows to import');
+  }
+
+  // Duplicates are matched on email, against the file itself as well as what
+  // is already stored — re-uploading a sheet should not double the list.
+  const existing = await ProspectingLead.find().select('primaryEmail');
+  const seen = new Set(existing.map((l) => leadText(l.primaryEmail).toLowerCase()).filter(Boolean));
+
+  const valid = [];
+  const errors = [];
+  let skipped = 0;
+
+  leads.forEach((row, index) => {
+    // +2: one for the header row, one because people count from 1 — the same
+    // number they are looking at in Excel.
+    const rowNumber = index + 2;
+
+    const problem = validateLead(row);
+    if (problem) {
+      errors.push(`Row ${rowNumber}: ${problem}`);
+      return;
+    }
+
+    const email = leadText(row.primaryEmail).toLowerCase();
+    if (seen.has(email)) {
+      skipped += 1;
+      return;
+    }
+    seen.add(email);
+
+    valid.push({
+      ...row,
+      opportunityStage: ProspectingLead.OPPORTUNITY_STAGES.includes(leadText(row.opportunityStage))
+        ? leadText(row.opportunityStage)
+        : 'Unqualified',
+    });
+  });
+
+  const inserted = valid.length
+    ? await ProspectingLead.insertMany(valid, { ordered: false })
+    : [];
+
+  return {
+    imported: inserted.length,
+    skipped,
+    errors,
+    leads: inserted,
+  };
 };
 
 exports.updateProspectingLead = async (id, data) => {

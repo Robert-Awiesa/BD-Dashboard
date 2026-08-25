@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import * as XLSX from 'xlsx';
+import { makeRowMapper, LEAD_ALIASES } from '../../lib/sheetImport';
 import Modal from '../../components/common/Modal';
 import Button from '../../components/common/Button';
 import {
@@ -27,26 +28,32 @@ const downloadTemplate = () => {
   XLSX.writeFile(wb, 'prospecting-leads-template.xlsx');
 };
 
-const LABEL_TO_FIELD = Object.fromEntries(
-  Object.entries(PROSPECTING_FIELD_LABELS).map(([field, label]) => [label.toLowerCase(), field])
-);
 
-const normalizeRow = (row) => {
-  // Map either DB field keys or human-readable template labels to schema keys.
-  const normalized = {};
-  Object.entries(row).forEach(([key, value]) => {
-    const trimmedKey = String(key).trim();
-    const field = PROSPECTING_FIELDS.includes(trimmedKey)
-      ? trimmedKey
-      : LABEL_TO_FIELD[trimmedKey.toLowerCase()];
-    if (field) {
-      normalized[field] = typeof value === 'string' ? value.trim() : value;
+// Headers are matched on their letters and digits alone against the words a
+// real contact list uses, so "Phone", "Job Title" and "COMPANY " all land.
+// The old matcher needed our exact template label, which is why a Phone column
+// never reached the required primaryContact field.
+const buildRows = (rawRows) => {
+  const { map, unknownHeaders } = makeRowMapper(LEAD_ALIASES);
+  const rows = rawRows.map((raw) => {
+    const row = map(raw);
+    if (!row.opportunityStage || !OPPORTUNITY_STAGES.includes(row.opportunityStage)) {
+      row.opportunityStage = 'Unqualified';
     }
+    return row;
   });
-  if (!normalized.opportunityStage || !OPPORTUNITY_STAGES.includes(normalized.opportunityStage)) {
-    normalized.opportunityStage = 'Unqualified';
-  }
-  return normalized;
+  return { rows, unknown: unknownHeaders() };
+};
+
+// The same rules the server enforces, so the preview can say which rows will
+// be refused before anything is sent.
+const rowProblem = (row) => {
+  if (!row.company) return 'company';
+  if (!row.contactPerson) return 'contact person';
+  if (!row.primaryEmail) return 'primary email';
+  if (!row.primaryContact) return 'primary contact';
+  if (!row.industry) return 'industry';
+  return null;
 };
 
 
@@ -73,6 +80,8 @@ const ProspectingModal = ({ open, onClose, onSubmitManual, onSubmitBulk, submitt
 
   const [dragActive, setDragActive] = useState(false);
   const [parsedRows, setParsedRows] = useState([]);
+  const [unknownHeaders, setUnknownHeaders] = useState([]);
+  const [sheetHeaders, setSheetHeaders] = useState([]);
   const [parseError, setParseError] = useState(null);
   const [fileName, setFileName] = useState('');
   const fileInputRef = useRef(null);
@@ -130,17 +139,19 @@ const ProspectingModal = ({ open, onClose, onSubmitManual, onSubmitBulk, submitt
         const workbook = XLSX.read(data, { type: 'array' });
         const sheetName = workbook.SheetNames[0];
         const sheet = workbook.Sheets[sheetName];
-        const rows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
-        if (rows.length === 0) {
+        // raw:false keeps "+233 20 000 0000" a string — read as a number it
+        // loses its leading +, and every field here is text.
+        const raw = XLSX.utils.sheet_to_json(sheet, { defval: '', raw: false });
+        if (raw.length === 0) {
           setParseError('No rows found in the uploaded file.');
           return;
         }
-        const normalized = rows.map(normalizeRow).filter((r) => r.company);
-        if (normalized.length === 0) {
-          setParseError('No valid rows found. Make sure the "Company" column is populated.');
-          return;
-        }
-        setParsedRows(normalized);
+        const { rows, unknown } = buildRows(raw);
+        setUnknownHeaders(unknown);
+        setSheetHeaders(Object.keys(raw[0] || {}));
+        // Rows are kept even when incomplete, so the preview can name what is
+        // missing instead of dropping them silently and importing fewer.
+        setParsedRows(rows);
       } catch (err) {
         setParseError(`Failed to parse file: ${err.message}`);
       }
@@ -148,6 +159,13 @@ const ProspectingModal = ({ open, onClose, onSubmitManual, onSubmitBulk, submitt
     reader.onerror = () => setParseError('Failed to read file.');
     reader.readAsArrayBuffer(file);
   };
+
+  // Row numbers are the ones Excel shows: +1 for the header, +1 for counting
+  // from one.
+  const blockedRows = parsedRows
+    .map((row, i) => ({ row: i + 2, missing: rowProblem(row) }))
+    .filter((r) => r.missing);
+  const importableRows = parsedRows.filter((row) => !rowProblem(row));
 
   const handleFileInputChange = (e) => {
     const file = e.target.files?.[0];
@@ -164,7 +182,9 @@ const ProspectingModal = ({ open, onClose, onSubmitManual, onSubmitBulk, submitt
   const handleBulkSubmit = async () => {
     setParseError(null);
     try {
-      await onSubmitBulk(parsedRows);
+      // Only the rows that can actually be stored — the rest are already
+      // named in the preview, so sending them just produces noise.
+      await onSubmitBulk(importableRows, { unknownHeaders, blocked: blockedRows.length });
       resetState();
     } catch (err) {
       setParseError(err.message);
@@ -359,9 +379,27 @@ const ProspectingModal = ({ open, onClose, onSubmitManual, onSubmitBulk, submitt
 
           {parsedRows.length > 0 && (
             <div className="space-y-2">
+              {/* What the sheet parsed to, before anything is sent. It used to
+                  say "N rows ready", drop the incomplete ones silently, and
+                  report success even when nothing landed. */}
               <p className="text-xs text-forest-700 font-medium">
-                ✓ {parsedRows.length} row{parsedRows.length !== 1 ? 's' : ''} ready to import
+                ✓ {importableRows.length} of {parsedRows.length} row{parsedRows.length !== 1 ? 's' : ''} ready to import
               </p>
+              <p className="text-[11px] text-slate-500">
+                Columns read: {sheetHeaders.join(', ') || '(none)'}
+              </p>
+              {unknownHeaders.length > 0 && (
+                <p className="text-[11px] text-amber-800">
+                  Not recognised, so ignored: <strong>{unknownHeaders.join(', ')}</strong>.
+                  Rename them to match the template, or download it above.
+                </p>
+              )}
+              {blockedRows.length > 0 && (
+                <p className="text-[11px] text-red-700">
+                  {blockedRows.slice(0, 4).map((b) => `row ${b.row} has no ${b.missing}`).join('; ')}
+                  {blockedRows.length > 4 ? `; and ${blockedRows.length - 4} more` : ''} — those will be skipped.
+                </p>
+              )}
               <div className="max-h-48 overflow-auto border border-slate-200 rounded-lg">
                 <table className="w-full text-xs">
                   <thead className="bg-slate-50 sticky top-0">
@@ -397,10 +435,10 @@ const ProspectingModal = ({ open, onClose, onSubmitManual, onSubmitBulk, submitt
             <Button
               type="button"
               variant="primary"
-              disabled={submitting || parsedRows.length === 0}
+              disabled={submitting || importableRows.length === 0}
               onClick={handleBulkSubmit}
             >
-              {submitting ? 'Importing...' : `Import ${parsedRows.length || ''} Lead${parsedRows.length === 1 ? '' : 's'}`}
+              {submitting ? 'Importing...' : `Import ${importableRows.length || ''} Lead${importableRows.length === 1 ? '' : 's'}`}
             </Button>
           </div>
         </div>

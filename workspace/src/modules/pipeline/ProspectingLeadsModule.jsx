@@ -4,6 +4,7 @@ import Button from '../../components/common/Button';
 import Badge from '../../components/common/Badge';
 import Modal from '../../components/common/Modal';
 import ProspectingModal from './ProspectingModal';
+import { importSummary } from '../../lib/sheetImport';
 
 const formatDate = (value) => {
   if (!value) return '—';
@@ -19,6 +20,7 @@ const ProspectingLeadsModule = () => {
 
   const [showModal, setShowModal] = useState(false);
   const [editingLead, setEditingLead] = useState(null);
+  const [importResult, setImportResult] = useState(null);
   const [submitting, setSubmitting] = useState(false);
 
   const [selectedLead, setSelectedLead] = useState(null);
@@ -73,11 +75,22 @@ const ProspectingLeadsModule = () => {
     }
   };
 
-  const handleSubmitBulk = async (rows) => {
+  const handleSubmitBulk = async (rows, { unknownHeaders = [], blocked = 0 } = {}) => {
     setSubmitting(true);
     try {
       const result = await bdApi.bulkAddProspectingLeads(rows);
       setShowModal(false);
+      // The result used to be returned and then dropped, so an import that
+      // stored nothing looked identical to one that worked.
+      setImportResult(
+        importSummary({
+          imported: result.imported ?? 0,
+          skipped: result.skipped ?? 0,
+          blocked,
+          errors: result.errors ?? [],
+          unknownHeaders,
+        })
+      );
       await refreshLeads();
       return result;
     } finally {
@@ -174,6 +187,19 @@ const ProspectingLeadsModule = () => {
               </tbody>
             </table>
           </div>
+        </div>
+      )}
+
+      {importResult && (
+        <div className="flex items-start justify-between gap-3 px-3 py-2 rounded-lg bg-navy-50 border border-navy-200 text-sm text-navy-900">
+          <span>{importResult}</span>
+          <button
+            type="button"
+            onClick={() => setImportResult(null)}
+            className="text-xs text-slate-500 hover:text-navy-900 cursor-pointer shrink-0"
+          >
+            Dismiss
+          </button>
         </div>
       )}
 

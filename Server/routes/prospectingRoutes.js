@@ -22,15 +22,19 @@ router.post('/', async (req, res) => {
   }
 });
 
-// POST bulk upload leads from Excel parse
+// POST bulk upload leads from an Excel parse.
+// Accepts a bare array or { leads: [...] }, because both shapes were already
+// being sent and the mismatch produced "must be a non-empty array" on a file
+// that was perfectly fine.
 router.post('/bulk', async (req, res) => {
   try {
-    const leadsArray = req.body;
-    if (!Array.isArray(leadsArray) || leadsArray.length === 0) {
+    const rows = Array.isArray(req.body) ? req.body : req.body?.leads || req.body?.rows;
+    if (!Array.isArray(rows) || rows.length === 0) {
       return res.status(400).json({ message: 'Request body must be a non-empty array of leads' });
     }
-    const insertedLeads = await bdService.bulkCreateProspectingLeads(leadsArray);
-    res.status(201).json({ message: `Successfully imported ${insertedLeads.length} leads`, insertedLeads });
+    // { imported, skipped, errors, leads } — the same shape the outreach
+    // importer returns, so the UI can report both the same way.
+    res.status(201).json(await bdService.bulkCreateProspectingLeads(rows));
   } catch (error) {
     res.status(400).json({ message: error.message });
   }
