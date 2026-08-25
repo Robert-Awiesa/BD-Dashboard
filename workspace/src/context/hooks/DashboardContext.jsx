@@ -29,11 +29,6 @@ export const DashboardProvider = ({ children }) => {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [serverConnected, setServerConnected] = useState(false);
   const [serverStatusMessage, setServerStatusMessage] = useState('Checking connection...');
-  const [notifications, setNotifications] = useState([
-    { id: 1, text: 'Opening tender deadline approaching for Project Alpha', type: 'warning' },
-    { id: 2, text: 'Team birthday: Sarah Jenkins today!', type: 'info' }
-  ]);
-
   const checkBackendStatus = async () => {
     const health = await bdApi.checkHealth();
     if (health.status === 'ok') {
@@ -53,10 +48,6 @@ export const DashboardProvider = ({ children }) => {
       clearInterval(interval);
     };
   }, []);
-
-  const addNotification = (text, type = 'info') => {
-    setNotifications((prev) => [...prev, { id: Date.now(), text, type }]);
-  };
 
   // Quick Log lives in the app header so an interaction can be filed from any
   // screen — logging has to be reachable in one click or it does not happen.
@@ -94,8 +85,6 @@ export const DashboardProvider = ({ children }) => {
       value={{
         activeModule,
         setActiveModule,
-        notifications,
-        addNotification,
         serverConnected,
         serverStatusMessage,
         checkBackendStatus,

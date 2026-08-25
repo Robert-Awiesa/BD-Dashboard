@@ -85,7 +85,7 @@ const RankedList = ({ title, subtitle, items, emptyText, onOpen, metric }) => (
 );
 
 const BlogModule = () => {
-  const { currentUser, addNotification } = useDashboard();
+  const { currentUser } = useDashboard();
 
   const [activeType, setActiveType] = useState(null);
   const [stats, setStats] = useState(null);
@@ -191,7 +191,6 @@ const BlogModule = () => {
       await bdApi.recordContentUsage(item._id, currentUser);
       refresh();
       flash(`"${item.title}" queued in Social Media as a scripted LinkedIn promo.`);
-      addNotification(`Article queued for social promotion: ${item.title}`, 'info');
     } catch (err) {
       setError(err.message);
     }

@@ -187,14 +187,23 @@ async function evaluateClients(today, todayKey, results) {
     let severity = 'upcoming';
 
     // 1. Gone quiet, relative to this client's agreed cadence.
-    const since = client.daysSinceLastContact;
     const cadence = client.expectedCadenceDays;
+    // A client nobody has ever contacted has no "days since" at all, and the
+    // comparison below skipped it — so the one account with nothing recorded
+    // against it was the only one never chased. Count from when it was added.
+    const since = client.daysSinceLastContact !== null
+      ? client.daysSinceLastContact
+      : daysBetween(client.createdAt, today);
+    const neverContacted = client.daysSinceLastContact === null;
+
     if (since !== null && since > cadence) {
       // Fire on the day it lapses, then weekly — not on day 7 only, which would
       // leave the first week of neglect completely silent.
       const overdueBy = since - cadence;
       if (overdueBy === 1 || overdueBy % 7 === 0) {
-        notes.push(`no contact for ${since} days (cadence is ${cadence})`);
+        notes.push(neverContacted
+          ? `no contact has ever been logged, ${since} days after it was added (cadence is ${cadence})`
+          : `no contact for ${since} days (cadence is ${cadence})`);
         severity = 'overdue';
       }
     }

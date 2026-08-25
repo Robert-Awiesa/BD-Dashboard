@@ -1,9 +1,13 @@
 import Button from '../common/Button';
 import { useDashboard } from '../../context/hooks/DashboardContext';
 import TeamMemberPicker from './TeamMemberPicker';
+import ReminderBell from './ReminderBell';
 
 const Header = ({ onQuickAdd }) => {
-  const { serverConnected, serverStatusMessage, mobileSidebarOpen, setMobileSidebarOpen } = useDashboard();
+  const {
+    serverConnected, serverStatusMessage, mobileSidebarOpen, setMobileSidebarOpen,
+    setActiveModule,
+  } = useDashboard();
 
   return (
     <header className="h-16 bg-white/95 backdrop-blur-md border-b border-slate-200 px-4 sm:px-6 flex items-center justify-between sticky top-0 z-20 shadow-sm gap-3">
@@ -43,6 +47,10 @@ const Header = ({ onQuickAdd }) => {
             {serverStatusMessage}
           </span>
         </div>
+        {/* Everything the sweep raised, on every screen — it used to be
+            reachable only from inside Events & Forums. */}
+        <ReminderBell onOpenModule={setActiveModule} />
+
         {/* Who is filing this — every module stamps it onto what you record. */}
         <TeamMemberPicker />
         <Button variant="primary" onClick={onQuickAdd} className="text-xs py-1.5 px-2.5 sm:px-3 font-semibold shadow-navy-900/10 shadow-lg whitespace-nowrap">
