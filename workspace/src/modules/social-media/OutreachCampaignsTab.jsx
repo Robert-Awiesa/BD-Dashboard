@@ -39,6 +39,24 @@ const normaliseRow = (row) => {
   };
 };
 
+// The sheet the upload expects. Without this you can upload a file but nothing
+// tells you which columns it reads — the same template pattern Prospecting uses.
+const downloadTemplate = (channel) => {
+  const isEmail = channel === 'Email';
+  const header = isEmail
+    ? ['Name', 'Title', 'Email', 'Contact', 'Company', 'Notes']
+    : ['Name', 'Phone Contact', 'Company', 'Notes'];
+  const sample = isEmail
+    ? ['Jane Doe', 'Head of Procurement', 'jane@acme.com', '+233 20 000 0000', 'Acme Corp', 'Met at the Q3 forum']
+    : ['Jane Doe', '+233 20 000 0000', 'Acme Corp', 'Met at the Q3 forum'];
+
+  const ws = XLSX.utils.aoa_to_sheet([header, sample]);
+  ws['!cols'] = header.map(() => ({ wch: 24 }));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, `${channel} recipients`);
+  XLSX.writeFile(wb, `${channel.toLowerCase()}-recipients-template.xlsx`);
+};
+
 const OutreachCampaignsTab = ({ channel }) => {
   const isEmail = channel === 'Email';
   const [campaigns, setCampaigns] = useState([]);
@@ -353,6 +371,9 @@ const OutreachCampaignsTab = ({ channel }) => {
                 )}
               </div>
               <div className="flex flex-wrap items-center gap-2">
+                <Button variant="secondary" onClick={() => downloadTemplate(channel)}>
+                  ⬇ Template
+                </Button>
                 <label className="inline-flex items-center gap-2 text-sm text-navy-700 cursor-pointer">
                   <span>Upload Excel/CSV</span>
                   <input type="file" accept=".xlsx,.xls,.csv" onChange={importSheet} className="sr-only" />
