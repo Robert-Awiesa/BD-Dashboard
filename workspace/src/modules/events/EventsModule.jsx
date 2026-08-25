@@ -164,7 +164,9 @@ const EventsModule = () => {
     try {
       await bdApi.evaluateReminders();
       const fresh = await bdApi.getReminders();
-      setReminders(fresh.filter((r) => ['Event', 'Milestone'].includes(r.sourceType)));
+      // Same filter the initial load uses — narrowing it here made tender and
+      // client reminders vanish the moment somebody pressed Check now.
+      setReminders(fresh.filter((r) => r.sourceType !== 'Campaign'));
     } catch (err) {
       alert(`Could not run the reminder sweep: ${err.message}`);
     } finally {
