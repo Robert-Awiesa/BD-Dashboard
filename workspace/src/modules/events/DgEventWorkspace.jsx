@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
 import { bdApi } from '../../context/services/api';
+import { useDashboard } from '../../context/hooks/DashboardContext';
 import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
 import Badge from '../../components/common/Badge';
 import Modal from '../../components/common/Modal';
+import DgStagePanel from './DgStagePanel';
 import FormCard from '../../components/common/FormCard';
 import { DG_DEPARTMENTS, DG_PROPOSAL_TYPES, DG_PROPOSAL_STATUSES } from './eventConstants';
 
@@ -22,6 +24,7 @@ const emptyProposal = {
 };
 
 const DgEventWorkspace = () => {
+  const { currentUser } = useDashboard();
   const [editions, setEditions] = useState([]);
   const [activeId, setActiveId] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -35,6 +38,20 @@ const DgEventWorkspace = () => {
   const [taskDrafts, setTaskDrafts] = useState({});
   const [proposal, setProposal] = useState(emptyProposal);
   const [expandedPhase, setExpandedPhase] = useState(null);
+  // The stage manifest, so the panel renders the fields the server declares
+  // rather than a copy kept here that would drift from it.
+  const [stageSpec, setStageSpec] = useState({});
+
+  useEffect(() => {
+    let ignore = false;
+    bdApi.getDgMeta()
+      .then((meta) => {
+        if (ignore) return;
+        setStageSpec(Object.fromEntries(meta.stages.map((st) => [st.name, st])));
+      })
+      .catch(() => { /* the activities still work without the field spec */ });
+    return () => { ignore = true; };
+  }, []);
 
   useEffect(() => {
     let ignore = false;
@@ -308,6 +325,15 @@ const DgEventWorkspace = () => {
                         <input type="date" value={draft.dueDate} onChange={(e) => setTaskDrafts((d) => ({ ...d, [phase._id]: { ...draft, dueDate: e.target.value } }))} className="form-input" />
                         <Button variant="secondary" className="text-xs px-3 py-2" onClick={() => addTask(phase._id)}>Add</Button>
                       </div>
+
+                      <DgStagePanel
+                        key={`${phase._id}-${phase.expenses?.length || 0}-${JSON.stringify(phase.attributes || {})}`}
+                        dgEventId={active._id}
+                        phase={phase}
+                        spec={stageSpec[phase.name]}
+                        currentUser={currentUser}
+                        onChanged={upsert}
+                      />
                     </div>
                   )}
                 </div>

@@ -746,6 +746,48 @@ export const bdApi = {
     return handleResponse(response);
   },
 
+  // The stage manifest — activities and declared fields per stage — so the UI
+  // renders from the server's spec instead of keeping a copy that drifts.
+  async getDgMeta() {
+    const response = await fetch(`${API_BASE_URL}/dg-event/meta`);
+    return handleResponse(response);
+  },
+
+  async updateDgPhase(dgEventId, phaseId, updates) {
+    const response = await fetch(`${API_BASE_URL}/dg-event/${dgEventId}/phases/${phaseId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updates),
+    });
+    return handleResponse(response);
+  },
+
+  async setDgPhaseAttributes(dgEventId, phaseId, attributes) {
+    const response = await fetch(`${API_BASE_URL}/dg-event/${dgEventId}/phases/${phaseId}/attributes`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(attributes),
+    });
+    return handleResponse(response);
+  },
+
+  async addDgPhaseExpense(dgEventId, phaseId, expense) {
+    const response = await fetch(`${API_BASE_URL}/dg-event/${dgEventId}/phases/${phaseId}/expenses`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(expense),
+    });
+    return handleResponse(response);
+  },
+
+  async deleteDgPhaseExpense(dgEventId, phaseId, expenseId) {
+    const response = await fetch(
+      `${API_BASE_URL}/dg-event/${dgEventId}/phases/${phaseId}/expenses/${expenseId}`,
+      { method: 'DELETE' }
+    );
+    return handleResponse(response);
+  },
+
   async addDgPhaseTask(id, phaseId, task) {
     const response = await fetch(`${API_BASE_URL}/dg-event/${id}/phases/${phaseId}/tasks`, {
       method: 'POST',

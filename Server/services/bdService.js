@@ -509,7 +509,13 @@ exports.createDgEvent = async (data) => {
 };
 
 exports.updateDgEvent = async (id, data) => {
-  const { _id, phaseProgress, overallProgress, currentPhase, budgetRemaining, ...updates } = data;
+  const {
+    _id, phaseProgress, overallProgress, currentPhase,
+    // All derived — writing them back would let the headline figures drift
+    // from the stage expenses they are computed from.
+    budgetRemaining, budgetSpent, phaseSpend,
+    ...updates
+  } = data;
   const updated = await DgEvent.findByIdAndUpdate(id, updates, {
     returnDocument: 'after',
     runValidators: true,
@@ -522,6 +528,101 @@ exports.deleteDgEvent = async (id) => {
   const deleted = await DgEvent.findByIdAndDelete(id);
   if (!deleted) throw new Error('DG event not found');
   return deleted;
+};
+
+// --- Stage attributes: the fields declared for that stage in STAGE_SPEC ---
+exports.setDgPhaseAttributes = async (dgEventId, phaseId, attributes = {}) => {
+  const dgEvent = await DgEvent.findById(dgEventId);
+  if (!dgEvent) throw new Error('DG event not found');
+  const phase = dgEvent.phases.id(phaseId);
+  if (!phase) throw new Error('Stage not found');
+
+  const spec = DgEvent.STAGE_SPEC[phase.name]?.fields || [];
+  const byKey = new Map(spec.map((f) => [f.key, f]));
+  for (const [key, value] of Object.entries(attributes)) {
+    const field = byKey.get(key);
+    if (!field) {
+      throw new Error(`"${key}" is not a field on the ${phase.name} stage`);
+    }
+    // A choice field is only useful if it holds one of its choices — the API
+    // is not only called by our own form.
+    if (field.type === 'choice' && value && !field.options.includes(String(value))) {
+      throw new Error(`"${value}" is not a valid ${field.label} — choose one of: ${field.options.join(', ')}`);
+    }
+    if (field.type === 'number' && value !== '' && value !== null && Number.isNaN(Number(value))) {
+      throw new Error(`${field.label} must be a number`);
+    }
+    // Stored as text; the spec tells the form how to render and parse it.
+    if (value === null || value === undefined || value === '') phase.attributes.delete(key);
+    else phase.attributes.set(key, String(value));
+  }
+
+  await dgEvent.save();
+  return dgEvent;
+};
+
+// --- Stage owner, dates and the blocked flag ---
+exports.updateDgPhase = async (dgEventId, phaseId, updates = {}) => {
+  const dgEvent = await DgEvent.findById(dgEventId);
+  if (!dgEvent) throw new Error('DG event not found');
+  const phase = dgEvent.phases.id(phaseId);
+  if (!phase) throw new Error('Stage not found');
+
+  for (const field of ['summary', 'owner', 'blockedReason']) {
+    if (updates[field] !== undefined) phase[field] = updates[field];
+  }
+  for (const field of ['startDate', 'targetDate']) {
+    if (updates[field] !== undefined) phase[field] = updates[field] || undefined;
+  }
+  if (updates.blocked !== undefined) {
+    phase.blocked = Boolean(updates.blocked);
+    // A block nobody explained cannot be acted on.
+    if (phase.blocked && !String(updates.blockedReason ?? phase.blockedReason).trim()) {
+      throw new Error('Say what is blocking this stage — a blocked stage with no reason cannot be picked up by anyone else');
+    }
+    if (!phase.blocked) phase.blockedReason = '';
+  }
+
+  await dgEvent.save();
+  return dgEvent;
+};
+
+// --- Stage expenses, which total into the event's budgetSpent ---
+exports.addDgPhaseExpense = async (dgEventId, phaseId, expense) => {
+  const dgEvent = await DgEvent.findById(dgEventId);
+  if (!dgEvent) throw new Error('DG event not found');
+  const phase = dgEvent.phases.id(phaseId);
+  if (!phase) throw new Error('Stage not found');
+
+  if (!String(expense?.description || '').trim()) {
+    throw new Error('An expense needs a description');
+  }
+  const amount = Number(expense.amount);
+  if (!Number.isFinite(amount) || amount <= 0) {
+    throw new Error('An expense needs an amount greater than zero');
+  }
+
+  phase.expenses.push({
+    description: String(expense.description).trim(),
+    amount,
+    incurredAt: expense.incurredAt || undefined,
+    paidBy: expense.paidBy || '',
+    notes: expense.notes || '',
+  });
+  await dgEvent.save();
+  return dgEvent;
+};
+
+exports.deleteDgPhaseExpense = async (dgEventId, phaseId, expenseId) => {
+  const dgEvent = await DgEvent.findById(dgEventId);
+  if (!dgEvent) throw new Error('DG event not found');
+  const phase = dgEvent.phases.id(phaseId);
+  if (!phase) throw new Error('Stage not found');
+  const expense = phase.expenses.id(expenseId);
+  if (!expense) throw new Error('Expense not found');
+  expense.deleteOne();
+  await dgEvent.save();
+  return dgEvent;
 };
 
 exports.addDgPhaseTask = async (dgEventId, phaseId, task) => {
