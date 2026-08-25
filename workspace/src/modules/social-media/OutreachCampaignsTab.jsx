@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import * as XLSX from 'xlsx';
+import { makeRowMapper, PERSON_ALIASES, importSummary } from '../../lib/sheetImport';
 import { bdApi } from '../../context/services/api';
 import Button from '../../components/common/Button';
 import Card from '../../components/common/Card';
@@ -24,21 +25,6 @@ const statusTone = (status) => {
 
 const toDate = (value) => (value ? new Date(value).toLocaleDateString(undefined, { dateStyle: 'medium' }) : '-');
 
-const normaliseRow = (row) => {
-  const pick = (...names) => {
-    const found = names.find((name) => row[name] !== undefined || row[name.toLowerCase()] !== undefined);
-    return found ? String(row[found] ?? row[found.toLowerCase()] ?? '').trim() : '';
-  };
-  return {
-    name: pick('Name', 'name'),
-    title: pick('Title', 'title', 'Role', 'role'),
-    email: pick('Email', 'email'),
-    contact: pick('Contact', 'contact', 'Phone', 'phone', 'Phone Contact'),
-    company: pick('Company', 'company'),
-    notes: pick('Message', 'message', 'Notes', 'notes'),
-  };
-};
-
 // The sheet the upload expects. Without this you can upload a file but nothing
 // tells you which columns it reads — the same template pattern Prospecting uses.
 const downloadTemplate = (channel) => {
@@ -59,6 +45,9 @@ const downloadTemplate = (channel) => {
 
 const OutreachCampaignsTab = ({ channel }) => {
   const isEmail = channel === 'Email';
+  // What the sheet parsed to, held until you confirm — an import that writes
+  // the moment you pick a file gives you no chance to notice a wrong column.
+  const [preview, setPreview] = useState(null);
   const [campaigns, setCampaigns] = useState([]);
   const [selectedId, setSelectedId] = useState('');
   const [recipients, setRecipients] = useState([]);
@@ -284,9 +273,33 @@ const OutreachCampaignsTab = ({ channel }) => {
       const buffer = await file.arrayBuffer();
       const workbook = XLSX.read(buffer);
       const sheet = workbook.Sheets[workbook.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json(sheet, { defval: '' }).map(normaliseRow);
-      const result = await bdApi.bulkAddOutreachRecipients(selectedCampaign._id, rows);
-      setMessage(`Imported ${result.imported}. Skipped ${result.skipped}.${result.errors.length ? ` Errors: ${result.errors.join('; ')}` : ''}`);
+      const raw = XLSX.utils.sheet_to_json(sheet, { defval: '', raw: false });
+
+      const { map, unknownHeaders } = makeRowMapper(PERSON_ALIASES);
+      const rows = raw.map(map);
+      // Row 1 is the header, so the first data row is row 2 — the same numbers
+      // the person is looking at in Excel.
+      const missing = rows
+        .map((r, i) => (r.name ? null : i + 2))
+        .filter(Boolean);
+
+      setPreview({
+        fileName: file.name,
+        rows,
+        unknown: unknownHeaders(),
+        missing,
+        headers: Object.keys(raw[0] || {}),
+      });
+    });
+  };
+
+  const confirmImport = () => {
+    if (!preview || !selectedCampaign) return;
+    run(async () => {
+      const result = await bdApi.bulkAddOutreachRecipients(selectedCampaign._id, preview.rows);
+      setMessage(importSummary({ ...result, unknownHeaders: preview.unknown }));
+      setPreview(null);
+      // The grid re-reads immediately, so what landed is on screen straight away.
       await refreshSelected(selectedCampaign._id);
     });
   };
@@ -350,6 +363,74 @@ const OutreachCampaignsTab = ({ channel }) => {
           <Button type="submit" disabled={busy}>{busy ? 'Working...' : `New ${channel}`}</Button>
         </form>
       </Card>
+
+      {/* What the sheet actually parsed to, before anything is written. The old
+          importer wrote immediately, so a wrong column showed up only as
+          "row 2: name is required" repeated down the whole file. */}
+      {preview && (
+        <div className="rounded-xl border border-navy-200 bg-navy-50/60 p-4 space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-sm font-semibold text-navy-900">
+              {preview.fileName} — {preview.rows.length} row{preview.rows.length === 1 ? '' : 's'} read
+            </p>
+            <div className="flex gap-2">
+              <Button variant="secondary" onClick={() => setPreview(null)}>Cancel</Button>
+              <Button
+                onClick={confirmImport}
+                disabled={busy || preview.rows.length === preview.missing.length}
+              >
+                Import {preview.rows.length - preview.missing.length} recipient(s)
+              </Button>
+            </div>
+          </div>
+
+          <p className="text-xs text-slate-600">
+            Columns read: {preview.headers.join(', ') || '(none)'}
+          </p>
+          {preview.unknown.length > 0 && (
+            <p className="text-xs text-amber-800">
+              Not recognised, so ignored: <strong>{preview.unknown.join(', ')}</strong>.
+              Rename them to match the template, or download it above.
+            </p>
+          )}
+          {preview.missing.length > 0 && (
+            <p className="text-xs text-red-700">
+              No name in row{preview.missing.length === 1 ? '' : 's'} {preview.missing.slice(0, 8).join(', ')}
+              {preview.missing.length > 8 ? ` and ${preview.missing.length - 8} more` : ''} — those will be skipped.
+            </p>
+          )}
+
+          <div className="overflow-x-auto border border-slate-200 rounded-lg bg-white">
+            <table className="w-full text-xs">
+              <thead className="bg-slate-50 text-slate-500 uppercase">
+                <tr>
+                  <th className="text-left px-2 py-1.5">Row</th>
+                  <th className="text-left px-2 py-1.5">Name</th>
+                  {isEmail && <th className="text-left px-2 py-1.5">Email</th>}
+                  <th className="text-left px-2 py-1.5">Contact</th>
+                  <th className="text-left px-2 py-1.5">Company</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {preview.rows.slice(0, 8).map((r, i) => (
+                  <tr key={`${r.name || 'row'}-${i}`} className={r.name ? '' : 'bg-red-50/60'}>
+                    <td className="px-2 py-1.5 text-slate-400">{i + 2}</td>
+                    <td className="px-2 py-1.5">{r.name || <span className="text-red-600">missing</span>}</td>
+                    {isEmail && <td className="px-2 py-1.5">{r.email || '—'}</td>}
+                    <td className="px-2 py-1.5">{r.contact || '—'}</td>
+                    <td className="px-2 py-1.5">{r.company || '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {preview.rows.length > 8 && (
+              <p className="text-[11px] text-slate-500 px-2 py-1.5">
+                + {preview.rows.length - 8} more row(s)
+              </p>
+            )}
+          </div>
+        </div>
+      )}
 
       {error && <div className="p-3 rounded-lg border border-red-200 bg-red-50 text-sm text-red-700">{error}</div>}
       {message && <div className="p-3 rounded-lg border border-forest-200 bg-forest-50 text-sm text-forest-700">{message}</div>}

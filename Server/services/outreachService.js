@@ -18,7 +18,8 @@ const normaliseTags = (tags) => {
   return [];
 };
 
-const clean = (value) => (typeof value === 'string' ? value.trim() : value || '');
+const clean = (value) =>
+  value === null || value === undefined ? '' : String(value).trim();
 
 // ====================
 // CAMPAIGNS
