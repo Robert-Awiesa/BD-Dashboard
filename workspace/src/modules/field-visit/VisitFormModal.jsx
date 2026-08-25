@@ -3,7 +3,7 @@ import { bdApi } from '../../context/services/api';
 import { useDashboard } from '../../context/hooks/DashboardContext';
 import Modal from '../../components/common/Modal';
 import Button from '../../components/common/Button';
-import { SENTIMENTS, SENTIMENT_ICON, emptyVisitForm, toDateInput } from './fieldVisitConstants';
+import { SENTIMENTS, SENTIMENT_ICON, emptyVisitForm, toDateInput, formatDate } from './fieldVisitConstants';
 
 /**
  * One form, two jobs:
@@ -17,6 +17,13 @@ const VisitFormModal = ({ open, onClose, onSaved, existing = null, mode = 'log',
 
   const [clients, setClients] = useState([]);
   const [loadingClients, setLoadingClients] = useState(true);
+  // Trips already booked for the chosen client that nobody has written up.
+  const [planned, setPlanned] = useState([]);
+  // Which one this write-up completes. Empty means it is a fresh visit.
+  const [completing, setCompleting] = useState('');
+  // Photos are staged here and uploaded once the visit has an id — a brand-new
+  // visit does not have one until it is saved.
+  const [photos, setPhotos] = useState([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
 
@@ -54,7 +61,42 @@ const VisitFormModal = ({ open, onClose, onSaved, existing = null, mode = 'log',
     return () => { ignore = true; };
   }, []);
 
-  const update = (field) => (e) => setForm((f) => ({ ...f, [field]: e.target.value }));
+  const update = (field) => (e) => {
+    const { value } = e.target;
+    setForm((f) => ({ ...f, [field]: value }));
+    // A different client has different booked trips, so any pick is stale.
+    if (field === 'client') { setPlanned([]); setCompleting(''); }
+  };
+
+  // A write-up is usually the write-up OF something already booked. Offer those
+  // trips rather than making people retype what planning already captured —
+  // and complete that record instead of leaving a planned twin behind.
+  useEffect(() => {
+    let ignore = false;
+    if (planning || existing || !form.client) return undefined;
+    bdApi.getFieldVisits({ client: form.client, visitStatus: 'Planned' })
+      .then((rows) => { if (!ignore) setPlanned(rows); })
+      .catch(() => { if (!ignore) setPlanned([]); });
+    return () => { ignore = true; };
+  }, [form.client, planning, existing]);
+
+  const pickPlanned = (id) => {
+    setCompleting(id);
+    if (!id) return;
+    const visit = planned.find((v) => v._id === id);
+    if (!visit) return;
+    // Carry across everything planning already answered; the write-up fields
+    // stay as typed so nothing entered before choosing is lost.
+    setForm((f) => ({
+      ...f,
+      locationName: visit.locationName || f.locationName,
+      address: visit.address || f.address,
+      purpose: visit.purpose || f.purpose,
+      occurredAt: toDateInput(visit.occurredAt) || f.occurredAt,
+      teamAttendees: (visit.teamAttendees || []).join(', ') || f.teamAttendees,
+      clientAttendees: (visit.clientAttendees || []).join(', ') || f.clientAttendees,
+    }));
+  };
 
   const submit = async (e) => {
     e.preventDefault();
@@ -72,9 +114,22 @@ const VisitFormModal = ({ open, onClose, onSaved, existing = null, mode = 'log',
         occurredAt: form.occurredAt ? new Date(form.occurredAt).toISOString() : undefined,
         durationMinutes: form.durationMinutes || undefined,
       };
-      const saved = existing
-        ? await bdApi.updateFieldVisit(existing._id, payload)
+      // Writing up a booked trip updates THAT visit, so the plan and the
+      // write-up stay one record with one history rather than two rows.
+      const target = existing?._id || completing;
+      let saved = target
+        ? await bdApi.updateFieldVisit(target, { ...payload, changedBy: currentUser })
         : await bdApi.addFieldVisit(payload);
+
+      // One request each, so a single bad file does not lose the rest — or the
+      // write-up, which is already saved by this point.
+      for (const file of photos) {
+        try {
+          saved = await bdApi.uploadVisitPhoto(saved._id, file);
+        } catch (err) {
+          setError(`Visit saved, but ${file.name} did not upload: ${err.message}`);
+        }
+      }
       // A visit is a client touch, so the client module's data is now stale.
       bumpClientData();
       onSaved(saved);
@@ -116,6 +171,32 @@ const VisitFormModal = ({ open, onClose, onSaved, existing = null, mode = 'log',
       <form id="visit-form" onSubmit={submit} className="space-y-4">
         {error && (
           <div className="px-3 py-2 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">{error}</div>
+        )}
+
+        {!planning && !existing && planned.length > 0 && (
+          <div className="rounded-lg border border-navy-200 bg-navy-50/60 px-3 py-2.5">
+            <label className="form-label" htmlFor="visit-completing">
+              Is this the write-up of a booked trip?
+            </label>
+            <select
+              id="visit-completing"
+              value={completing}
+              onChange={(e) => pickPlanned(e.target.value)}
+              className="form-input"
+            >
+              <option value="">No — this is a new visit</option>
+              {planned.map((v) => (
+                <option key={v._id} value={v._id}>
+                  {v.locationName} · {formatDate(v.occurredAt)}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-slate-600 mt-1">
+              {completing
+                ? 'The details you booked are filled in below. Saving writes up that trip rather than adding a second one.'
+                : `${planned.length} trip${planned.length === 1 ? '' : 's'} booked for this client and not yet written up.`}
+            </p>
+          </div>
         )}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -169,6 +250,22 @@ const VisitFormModal = ({ open, onClose, onSaved, existing = null, mode = 'log',
             went, who they met, and what they found. Planning stops at why. */}
         {!planning && (
           <>
+            <div>
+              <label className="form-label">Photos</label>
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={(e) => setPhotos(Array.from(e.target.files || []))}
+                className="text-sm"
+              />
+              <p className="text-xs text-slate-500 mt-1">
+                {photos.length > 0
+                  ? `${photos.length} photo${photos.length === 1 ? '' : 's'} will upload once the visit is saved.`
+                  : 'Site conditions are much easier to show than describe.'}
+              </p>
+            </div>
+
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="form-label">Who went (our side)</label>

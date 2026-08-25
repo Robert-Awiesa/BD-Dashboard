@@ -18,6 +18,24 @@ const photoSchema = new mongoose.Schema(
   { _id: true }
 );
 
+// One entry per save: what happened, who did it, and which fields moved.
+const changeSchema = new mongoose.Schema(
+  {
+    at: { type: Date, default: Date.now },
+    by: { type: String, default: '' },
+    action: { type: String, default: 'Updated' },
+    changes: [
+      {
+        _id: false,
+        field: { type: String },
+        from: { type: String },
+        to: { type: String },
+      },
+    ],
+  },
+  { _id: true }
+);
+
 const interactionSchema = new mongoose.Schema(
   {
     client: { type: mongoose.Schema.Types.ObjectId, ref: 'Client', required: true },
@@ -55,6 +73,12 @@ const interactionSchema = new mongoose.Schema(
     clientAttendees: [{ type: String }],
     photos: [photoSchema],
     durationMinutes: { type: Number },
+
+    // A visit is booked, walked, written up and corrected — often by different
+    // people days apart. Without a trail, "the purpose changed" or "the date
+    // moved" is unanswerable, and a write-up that contradicts what was planned
+    // looks like a mistake rather than a decision.
+    history: [changeSchema],
   },
   {
     timestamps: true,

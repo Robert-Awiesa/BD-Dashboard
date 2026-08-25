@@ -133,6 +133,51 @@ const validate = (payload) => {
   }
 };
 
+
+// ====================
+// CHANGE TRAIL
+// ====================
+
+// The fields worth a trail. Photos and history itself are excluded: photos
+// record their own uploader, and an entry about the trail is noise.
+const TRACKED = {
+  visitStatus: 'Status',
+  occurredAt: 'Date',
+  locationName: 'Site',
+  address: 'Address',
+  purpose: 'Purpose',
+  observations: 'Findings',
+  sentiment: 'How it went',
+  durationMinutes: 'Time on site',
+  teamAttendees: 'Who went',
+  clientAttendees: 'Who we met',
+  summary: 'Summary',
+};
+
+const readable = (value) => {
+  if (value === null || value === undefined || value === '') return '—';
+  if (Array.isArray(value)) return value.join(', ') || '—';
+  if (value instanceof Date) return value.toISOString().slice(0, 10);
+  return String(value);
+};
+
+/** What actually moved between the stored record and the incoming update. */
+const diff = (before, after) => {
+  const out = [];
+  for (const [field, label] of Object.entries(TRACKED)) {
+    if (!(field in after)) continue;
+    const from = readable(before[field]);
+    const to = readable(after[field]);
+    if (from !== to) out.push({ field: label, from, to });
+  }
+  return out;
+};
+
+const noteChange = (visit, { by, action, changes }) => {
+  visit.history = visit.history || [];
+  visit.history.push({ at: new Date(), by: by || '', action, changes: changes || [] });
+};
+
 exports.createVisit = async (data) => {
   const payload = buildPayload(data);
   validate(payload);
@@ -140,7 +185,15 @@ exports.createVisit = async (data) => {
   const client = await Client.findById(payload.client);
   if (!client) throw new Error('Client not found');
 
-  const visit = await Interaction.create(payload);
+  const visit = await Interaction.create({
+    ...payload,
+    history: [{
+      at: new Date(),
+      by: payload.loggedBy || '',
+      action: payload.visitStatus === 'Planned' ? 'Planned' : 'Logged',
+      changes: [],
+    }],
+  });
 
   // Logging a visit and capturing what you promised on site is one action.
   if (data.commitmentDescription && data.commitmentDescription.trim()) {
@@ -168,10 +221,30 @@ exports.updateVisit = async (id, data) => {
   if (updates.locationName !== undefined && !String(updates.locationName).trim()) {
     throw new Error('A site or location name is required');
   }
+  // The same fallback creation uses. Writing up a booked trip sends the whole
+  // form back, and the log form has no summary box — without this, completing a
+  // planned visit failed on a field nobody was ever asked for.
+  if (updates.summary !== undefined && !String(updates.summary).trim()) {
+    updates.summary = String(updates.purpose ?? existing.purpose ?? '').trim()
+      || (String(updates.locationName ?? existing.locationName ?? '').trim()
+        ? `Site visit — ${updates.locationName ?? existing.locationName}`
+        : 'Site visit');
+  }
 
-  const updated = await withClient(
-    Interaction.findByIdAndUpdate(id, updates, { returnDocument: 'after', runValidators: true })
-  );
+  const changes = diff(existing.toObject(), {
+    ...updates,
+    ...(updates.occurredAt ? { occurredAt: updates.occurredAt } : {}),
+  });
+  const becameComplete = updates.visitStatus === 'Completed' && existing.visitStatus !== 'Completed';
+
+  Object.assign(existing, updates);
+  noteChange(existing, {
+    by: data.changedBy || data.loggedBy || existing.loggedBy,
+    action: becameComplete ? 'Written up' : 'Updated',
+    changes,
+  });
+  await existing.save();
+  const updated = await withClient(Interaction.findById(id));
   // Marking a planned visit as completed turns it into real contact, so the
   // client's last-contact stamp has to be recomputed.
   await refreshClientContact(existing.client);
@@ -183,6 +256,7 @@ exports.completeVisit = async (id, data = {}) => {
   const visit = await Interaction.findOne({ _id: id, ...VISIT_QUERY });
   if (!visit) throw new Error('Visit not found');
 
+  const before = visit.toObject();
   visit.visitStatus = 'Completed';
   if (data.observations !== undefined) visit.observations = data.observations;
   if (data.sentiment) visit.sentiment = data.sentiment;
@@ -190,6 +264,17 @@ exports.completeVisit = async (id, data = {}) => {
   if (data.clientAttendees !== undefined) visit.clientAttendees = asList(data.clientAttendees);
   // A visit marked complete before its planned date actually happened today.
   if (visit.occurredAt > new Date()) visit.occurredAt = new Date();
+  noteChange(visit, {
+    by: data.completedBy || visit.loggedBy,
+    action: 'Written up',
+    changes: diff(before, {
+      visitStatus: 'Completed',
+      observations: visit.observations,
+      sentiment: visit.sentiment,
+      durationMinutes: visit.durationMinutes,
+      clientAttendees: visit.clientAttendees,
+    }),
+  });
   await visit.save();
 
   if (data.commitmentDescription && data.commitmentDescription.trim()) {

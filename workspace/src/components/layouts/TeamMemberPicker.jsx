@@ -119,7 +119,7 @@ const TeamMemberPicker = () => {
       <button
         type="button"
         onClick={() => setSheetOpen(true)}
-        aria-label={currentUser ? `Recording as ${currentUser} — change` : 'Set who is recording'}
+        aria-label={currentUser ? `Change who is recording (currently ${currentUser})` : 'Set who is recording'}
         className={`sm:hidden w-8 h-8 shrink-0 rounded-full text-xs font-semibold flex items-center justify-center cursor-pointer transition-colors ${
           currentUser
             ? 'bg-navy-700 text-white'

@@ -4,7 +4,7 @@ import Button from '../../components/common/Button';
 import TagInput from '../../components/common/TagInput';
 import {
   LOCATION_TYPES, AD_FORMATS, PLACEMENT_SITES, BUDGET_TYPES,
-  COMPANY_SIZES, DEGREES, DEVICE_OPTIONS, emptyCampaignForm,
+  COMPANY_SIZES, AGE_RANGES, DEGREES, DEVICE_OPTIONS, emptyCampaignForm,
 } from './campaignConstants';
 
 const STEPS = ['Audience & Targeting', 'Format', 'Placement, Budget & Schedule'];
@@ -198,7 +198,10 @@ const CampaignWizardModal = ({ open, onClose, onSubmit, submitting, initialData 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs text-slate-600 mb-1">Audience Age Range</label>
-                  <input type="text" value={form.audienceAgeRange} onChange={updateInput('audienceAgeRange')} className="w-full form-input" placeholder="e.g. 25-34" />
+                  <select value={form.audienceAgeRange} onChange={updateInput('audienceAgeRange')} className="w-full form-input">
+                    <option value="">Select…</option>
+                    {AGE_RANGES.map((r) => <option key={r} value={r}>{r}</option>)}
+                  </select>
                 </div>
                 <div>
                   <label className="block text-xs text-slate-600 mb-1.5">Devices Audience Uses</label>

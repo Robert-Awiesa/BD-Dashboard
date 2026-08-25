@@ -11,6 +11,10 @@ export const BUDGET_TYPES = ['Daily budget', 'Life time', 'Both'];
 
 export const COMPANY_SIZES = ['1-20', '20-40', '40-60', '60-80', '80-100', '100+'];
 
+// The brackets the ad platforms actually report on, so a typed "25-34 yrs" and
+// "25 - 34" stop being two different audiences at reporting time.
+export const AGE_RANGES = ['13-17', '18-24', '25-34', '35-44', '45-54', '55-64', '65+', 'All ages'];
+
 export const DEGREES = ['BSc', 'Masters', 'PhD'];
 
 export const DEVICE_OPTIONS = ['Phone', 'Laptop', 'Tablet', 'Desktop'];

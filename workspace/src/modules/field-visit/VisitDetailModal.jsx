@@ -225,6 +225,40 @@ const VisitDetailModal = ({ open, onClose, visit, onChanged, onEdit, onDelete })
           <MetaRow label="Logged by">{visit.loggedBy}</MetaRow>
         </div>
 
+        {/* Booked, walked, written up, corrected — often by different people
+            days apart. Without this, a write-up that contradicts the plan looks
+            like a mistake rather than a decision somebody took. */}
+        {visit.history?.length > 0 && (
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-1.5">
+              History
+            </p>
+            <ol className="space-y-1.5">
+              {[...visit.history].reverse().map((h) => (
+                <li key={h._id || h.at} className="rounded-lg border border-slate-200 px-3 py-2">
+                  <div className="flex flex-wrap items-baseline justify-between gap-2">
+                    <span className="text-xs font-semibold text-navy-900">{h.action}</span>
+                    <span className="text-[11px] text-slate-500">
+                      {h.by || 'unknown'} · {formatDate(h.at)}
+                    </span>
+                  </div>
+                  {h.changes?.length > 0 && (
+                    <ul className="mt-1 space-y-0.5">
+                      {h.changes.map((c) => (
+                        <li key={c.field} className="text-[11px] text-slate-600">
+                          <span className="text-slate-500">{c.field}:</span>{' '}
+                          <span className="line-through text-slate-400">{c.from}</span>{' '}
+                          <span aria-hidden="true">→</span> {c.to}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </li>
+              ))}
+            </ol>
+          </div>
+        )}
+
         <p className="text-xs text-slate-500">
           This visit also appears on {visit.client?.name || 'the client'}&rsquo;s timeline in Client Relations.
         </p>
