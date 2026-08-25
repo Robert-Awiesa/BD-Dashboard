@@ -59,7 +59,7 @@ const VisitFormModal = ({ open, onClose, onSaved, existing = null, mode = 'log',
   const submit = async (e) => {
     e.preventDefault();
     setError(null);
-    if (!currentUser) return setError('Set the active team member in Reports & Docs first.');
+    if (!currentUser) return setError('Pick who you are in the top bar first — visits are attributed to that name.');
     if (!form.client) return setError('Pick which client this visit is for.');
     if (!form.locationName.trim()) return setError('Where did you go? A site or location name is required.');
 

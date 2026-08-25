@@ -109,7 +109,7 @@ const ContentFormModal = ({
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
-    if (!currentUser) return setError('Set the active team member before saving.');
+    if (!currentUser) return setError('Pick who you are in the top bar before saving.');
 
     setSubmitting(true);
     try {

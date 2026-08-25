@@ -156,7 +156,7 @@ const ClientRelationsModule = () => {
       {error && <div className="px-3 py-2 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">{error}</div>}
       {!currentUser && (
         <div className="px-3 py-2 rounded-lg bg-amber-50 border border-amber-200 text-sm text-amber-800">
-          Set the active team member in Reports &amp; Docs — interactions are attributed to that name.
+          Pick who you are in the top bar — interactions are attributed to that name.
         </div>
       )}
 

@@ -53,7 +53,7 @@ const LogInteractionModal = ({ open, onClose, onLogged, lockedClient = null }) =
   const submit = async (e) => {
     e.preventDefault();
     setError(null);
-    if (!currentUser) return setError('Set the active team member in Reports & Docs first — logs are attributed to that name.');
+    if (!currentUser) return setError('Pick who you are in the top bar first — logs are attributed to that name.');
     if (!form.client) return setError('Pick which client this was with.');
     if (!form.summary.trim()) return setError('Add a one-line summary of what happened.');
 

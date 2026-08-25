@@ -143,7 +143,7 @@ const DocumentUploadModal = ({
 
     if (!form.title.trim()) return setError('A document title is required.');
     if (!form.fileUrl) return setError('Attach a file or paste a document link.');
-    if (!currentUser) return setError('Set the active team member before uploading.');
+    if (!currentUser) return setError('Pick who you are in the top bar before uploading.');
 
     setSubmitting(true);
     try {
@@ -431,7 +431,7 @@ const DocumentUploadModal = ({
         )}
 
         <p className="text-xs text-slate-500 pt-1 border-t border-slate-200">
-          Filed by <strong className="text-navy-800">{currentUser || 'nobody — set the active team member first'}</strong>.
+          Filed by <strong className="text-navy-800">{currentUser || 'nobody — pick who you are in the top bar'}</strong>.
           View and download counts are tracked automatically.
         </p>
       </form>

@@ -224,7 +224,7 @@ const TasksModule = () => {
       {error && <div className="px-3 py-2 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">{error}</div>}
       {!currentUser && (
         <div className="px-3 py-2 rounded-lg bg-amber-50 border border-amber-200 text-sm text-amber-800">
-          Set the active team member in Reports &amp; Docs — new tasks are assigned to that name by default.
+          Pick who you are in the top bar — new tasks are assigned to that name by default.
         </div>
       )}
 

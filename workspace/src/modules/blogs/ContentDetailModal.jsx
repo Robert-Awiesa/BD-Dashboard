@@ -312,7 +312,7 @@ const ContentDetailModal = ({
 
         {!currentUser && (
           <p className="text-xs text-amber-700">
-            Set the active team member on the hub so your edits are attributed.
+            Pick who you are in the top bar so your edits are attributed.
           </p>
         )}
       </div>

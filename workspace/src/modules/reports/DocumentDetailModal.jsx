@@ -52,7 +52,7 @@ const DocumentDetailModal = ({
   const postComment = async (e) => {
     e.preventDefault();
     if (!comment.trim()) return;
-    if (!currentUser) return setError('Set the active team member before commenting.');
+    if (!currentUser) return setError('Pick who you are in the top bar before commenting.');
     setPosting(true);
     setError(null);
     try {
@@ -349,7 +349,7 @@ const DocumentDetailModal = ({
                 value={comment}
                 onChange={(e) => setComment(e.target.value)}
                 rows={2}
-                placeholder={currentUser ? `Comment as ${currentUser}…` : 'Set the active team member to comment'}
+                placeholder={currentUser ? `Comment as ${currentUser}…` : 'Pick who you are in the top bar to comment'}
                 className="form-input"
               />
               <div className="flex justify-end">

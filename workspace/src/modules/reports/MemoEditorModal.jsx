@@ -123,7 +123,7 @@ const MemoEditorModal = ({
     setError(null);
     if (!form.title.trim()) return setError('A memo title is required.');
     if (!form.body.trim()) return setError('Write something before saving.');
-    if (!currentUser) return setError('Set the active team member before saving.');
+    if (!currentUser) return setError('Pick who you are in the top bar before saving.');
 
     setSubmitting(true);
     try {

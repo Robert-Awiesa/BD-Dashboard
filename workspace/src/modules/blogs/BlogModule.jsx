@@ -173,7 +173,7 @@ const BlogModule = () => {
   // Smart integration: push a published article into the social pipeline as a
   // pre-filled scripted entry, so nobody retypes the title and URL.
   const handlePromote = async (item) => {
-    if (!currentUser) return setError('Set the active team member before promoting.');
+    if (!currentUser) return setError('Pick who you are in the top bar before promoting.');
     try {
       // Field names map onto the SocialContent schema exactly — `postLink`
       // carries the article URL so the scheduler never needs it retyped.
@@ -273,7 +273,7 @@ const BlogModule = () => {
       {notice && <div className="px-3 py-2 rounded-lg bg-forest-50 border border-forest-200 text-sm text-forest-800">✓ {notice}</div>}
       {!currentUser && (
         <div className="px-3 py-2 rounded-lg bg-amber-50 border border-amber-200 text-sm text-amber-800">
-          Set the active team member in Reports & Docs — everything you file here is attributed to that name.
+          Pick who you are in the top bar — everything you file here is attributed to that name.
         </div>
       )}
 

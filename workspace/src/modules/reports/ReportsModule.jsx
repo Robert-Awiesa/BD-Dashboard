@@ -9,81 +9,13 @@ import DocumentDetailModal from './DocumentDetailModal';
 import DocumentAnalyticsPanel from './DocumentAnalyticsPanel';
 import { ACCENT_CLASSES, CATEGORIES, MEMO_CATEGORIES } from './documentConstants';
 
-// The workspace is open to every team member by design, so this name is not a
-// login — it is the attribution attached to uploads, memos and comments, and
-// the only accountability the system has. That makes name *consistency* matter:
-// a free-text box turns Robert / robert / Rob T. into three different authors
-// and quietly breaks author filtering and review ownership. So the picker is
-// seeded from everyone already on record, with an explicit path to add someone new.
-const ADD_NEW = '__add_new__';
+// The active team member is not a login — the workspace is open to everyone by
+// design. It is the attribution attached to uploads, memos and comments, and the
+// only accountability the system has, which is why it is picked from a shared
+// roster rather than typed: a free-text box turns Robert / robert / Rob T. into
+// three different authors and quietly breaks author filtering and review
+// ownership. The picker lives in the top bar so it is the same on every screen.
 
-const ActiveMemberField = ({ roster }) => {
-  const { currentUser, setCurrentUser } = useDashboard();
-  const [addingNew, setAddingNew] = useState(false);
-  const [draft, setDraft] = useState('');
-
-  const commitNew = () => {
-    const name = draft.trim();
-    if (!name) return;
-    setCurrentUser(name);
-    setDraft('');
-    setAddingNew(false);
-  };
-
-  // Someone whose name is not yet on any document still needs to appear as the
-  // current selection until they file something.
-  const options = currentUser && !roster.includes(currentUser)
-    ? [currentUser, ...roster]
-    : roster;
-
-  if (addingNew || (!currentUser && roster.length === 0)) {
-    return (
-      <div className="flex items-center gap-2">
-        <input
-          type="text"
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && commitNew()}
-          placeholder="Your name"
-          className="form-input text-sm"
-          autoFocus
-        />
-        <Button variant="secondary" onClick={commitNew}>Set</Button>
-        {roster.length > 0 && (
-          <button
-            onClick={() => { setAddingNew(false); setDraft(''); }}
-            className="text-xs text-slate-500 hover:text-navy-800 cursor-pointer"
-          >
-            Cancel
-          </button>
-        )}
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex items-center gap-2">
-      {currentUser && (
-        <span className="w-6 h-6 shrink-0 rounded-full bg-navy-700 text-white text-xs font-semibold flex items-center justify-center">
-          {currentUser.slice(0, 1).toUpperCase()}
-        </span>
-      )}
-      <select
-        value={currentUser || ''}
-        onChange={(e) => {
-          if (e.target.value === ADD_NEW) setAddingNew(true);
-          else setCurrentUser(e.target.value);
-        }}
-        className="form-input text-sm"
-        aria-label="Active team member"
-      >
-        {!currentUser && <option value="">Who are you?</option>}
-        {options.map((name) => <option key={name} value={name}>{name}</option>)}
-        <option value={ADD_NEW}>+ Add someone new…</option>
-      </select>
-    </div>
-  );
-};
 
 const CategoryCard = ({ category, stats, onOpen }) => {
   const accent = ACCENT_CLASSES[category.accent] || ACCENT_CLASSES.navy;
@@ -135,7 +67,6 @@ const ReportsModule = () => {
   // Populate the cross-module link pickers once, at module level.
   const [campaigns, setCampaigns] = useState([]);
   const [events, setEvents] = useState([]);
-  const [roster, setRoster] = useState([]);
 
   const [uploadState, setUploadState] = useState({ open: false, category: null, doc: null });
   const [memoState, setMemoState] = useState({ open: false, category: null, doc: null });
@@ -160,16 +91,11 @@ const ReportsModule = () => {
   }, [refreshToken]);
 
   useEffect(() => {
-    // Link targets and the team roster are optional context — a failure here
-    // must not take the repository down with it.
+    // Link targets are optional context — a failure here must not take the
+    // repository down with it.
     bdApi.getCampaigns().then(setCampaigns).catch(() => setCampaigns([]));
     bdApi.getEvents().then(setEvents).catch(() => setEvents([]));
   }, []);
-
-  // Re-read after each save so a newly-added person joins the roster.
-  useEffect(() => {
-    bdApi.getDocumentAuthors().then(setRoster).catch(() => setRoster([]));
-  }, [refreshToken]);
 
   const refresh = () => setRefreshToken((t) => t + 1);
 
@@ -310,7 +236,6 @@ const ReportsModule = () => {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <ActiveMemberField roster={roster} />
           <Button variant="secondary" onClick={() => openMemo(MEMO_CATEGORIES[0])}>✍ Create live memo</Button>
           <Button variant="primary" onClick={() => openUpload(CATEGORIES[0].id)}>⭱ Upload document</Button>
         </div>
@@ -322,7 +247,7 @@ const ReportsModule = () => {
 
       {!currentUser && (
         <div className="px-3 py-2 rounded-lg bg-amber-50 border border-amber-200 text-sm text-amber-800">
-          Set the active team member above — uploads, memos and comments are attributed to that name.
+          Pick who you are in the top bar — uploads, memos and comments are attributed to that name.
         </div>
       )}
 
