@@ -1,4 +1,5 @@
 const multer = require('multer');
+const fileStore = require('../services/fileStore');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
@@ -37,15 +38,45 @@ for (const dir of [SCRIPTS_DIR, COVERS_DIR, MEDIA_DIR, DOCUMENTS_DIR, ASSETS_DIR
   }
 }
 
-const makeStorage = (destDir) =>
-  multer.diskStorage({
-    destination: (req, file, cb) => cb(null, destDir),
-    filename: (req, file, cb) => {
-      const unique = crypto.randomBytes(8).toString('hex');
-      const ext = path.extname(file.originalname);
-      cb(null, `${Date.now()}-${unique}${ext}`);
-    },
-  });
+/**
+ * Files go to GridFS in MongoDB, not to the container's disk.
+ *
+ * Render's filesystem is ephemeral: everything written to it disappeared on the
+ * next deploy, leaving database rows pointing at files that no longer existed.
+ * A custom multer engine keeps `upload.single('x')` and `req.file.filename`
+ * working exactly as before, so no route needed changing.
+ */
+const makeStorage = (bucketName) => ({
+  _handleFile(req, file, cb) {
+    const chunks = [];
+    let bytes = 0;
+    file.stream.on('data', (chunk) => {
+      chunks.push(chunk);
+      bytes += chunk.length;
+    });
+    file.stream.on('error', cb);
+    file.stream.on('end', async () => {
+      try {
+        const saved = await fileStore.save(bucketName, {
+          originalname: file.originalname,
+          mimetype: file.mimetype,
+          size: bytes,
+          buffer: Buffer.concat(chunks),
+        });
+        // The same shape the disk engine produced.
+        cb(null, { filename: saved.filename, size: bytes, path: saved.url });
+      } catch (err) {
+        cb(err);
+      }
+    });
+  },
+  // Called when a later stage rejects the upload, so a refused file does not
+  // sit in the database forever.
+  _removeFile(req, file, cb) {
+    if (!file?.filename) return cb(null);
+    fileStore.remove(bucketName, file.filename).then(() => cb(null), cb);
+  },
+});
 
 const SCRIPT_MIME_TYPES = new Set([
   'text/plain',
@@ -67,13 +98,13 @@ const imageFileFilter = (req, file, cb) => {
 };
 
 exports.uploadScript = multer({
-  storage: makeStorage(SCRIPTS_DIR),
+  storage: makeStorage('scripts'),
   fileFilter: scriptFileFilter,
   limits: { fileSize: 10 * 1024 * 1024 },
 });
 
 exports.uploadCoverImage = multer({
-  storage: makeStorage(COVERS_DIR),
+  storage: makeStorage('covers'),
   fileFilter: imageFileFilter,
   limits: { fileSize: 10 * 1024 * 1024 },
 });
@@ -103,7 +134,7 @@ const mediaFileFilter = (req, file, cb) => {
 };
 
 exports.uploadMedia = multer({
-  storage: makeStorage(MEDIA_DIR),
+  storage: makeStorage('media'),
   fileFilter: mediaFileFilter,
   limits: { fileSize: MEDIA_MAX_BYTES },
 });
@@ -126,7 +157,7 @@ const documentFileFilter = (req, file, cb) => {
 };
 
 exports.uploadDocument = multer({
-  storage: makeStorage(DOCUMENTS_DIR),
+  storage: makeStorage('documents'),
   fileFilter: documentFileFilter,
   limits: { fileSize: DOCUMENT_MAX_BYTES },
 });
@@ -149,7 +180,7 @@ const assetFileFilter = (req, file, cb) => {
 };
 
 exports.uploadAsset = multer({
-  storage: makeStorage(ASSETS_DIR),
+  storage: makeStorage('assets'),
   fileFilter: assetFileFilter,
   limits: { fileSize: ASSET_MAX_BYTES },
 });
@@ -167,7 +198,7 @@ const visitPhotoFilter = (req, file, cb) => {
 };
 
 exports.uploadVisitPhoto = multer({
-  storage: makeStorage(VISITS_DIR),
+  storage: makeStorage('visits'),
   fileFilter: visitPhotoFilter,
   limits: { fileSize: VISIT_PHOTO_MAX_BYTES },
 });
@@ -189,7 +220,7 @@ const eoiFileFilter = (req, file, cb) => {
 };
 
 exports.uploadEoi = multer({
-  storage: makeStorage(EOIS_DIR),
+  storage: makeStorage('eois'),
   fileFilter: eoiFileFilter,
   limits: { fileSize: EOI_MAX_BYTES },
 });
@@ -199,7 +230,7 @@ exports.EOI_MAX_BYTES = EOI_MAX_BYTES;
 // Tender source evidence: the newspaper clipping, the WhatsApp screenshot.
 // Same shape and limits as EOI notices — it is the same kind of artefact.
 exports.uploadTender = multer({
-  storage: makeStorage(TENDERS_DIR),
+  storage: makeStorage('tenders'),
   fileFilter: eoiFileFilter,
   limits: { fileSize: EOI_MAX_BYTES },
 });

@@ -23,10 +23,37 @@ app.use(cors({
   credentials: true,
 }));
 app.use(express.json({ limit: '5mb' }));
-// Serve from wherever the upload middleware actually put things — on
-// serverless that is the temp dir, not the repo folder.
-const { UPLOAD_ROOT } = require('./middleware/upload');
-app.use('/uploads', express.static(UPLOAD_ROOT));
+// Uploads live in GridFS, not on disk — a container filesystem does not
+// survive a deploy, which is how every stored file went missing while the
+// database rows kept pointing at them. The URL shape is unchanged, so rows
+// written before this keep resolving once their file is re-uploaded.
+const fileStore = require('./services/fileStore');
+
+// An upload is stored before the route runs, so a route that then rejects the
+// request would leave the file behind with nothing referencing it.
+app.use((req, res, next) => {
+  res.on('finish', () => {
+    if (res.statusCode < 400 || !req.file?.filename) return;
+    const bucket = (req.file.path || '').split('/')[2];
+    if (bucket) fileStore.removeQuietly(bucket, req.file.filename);
+  });
+  next();
+});
+
+app.get('/uploads/:bucket/:filename', async (req, res) => {
+  const { bucket, filename } = req.params;
+  try {
+    const found = await fileStore.stream(bucket, filename, res);
+    if (!found) res.status(404).json({ message: 'File not found' });
+  } catch (error) {
+    // Headers may already be on their way once streaming has begun.
+    if (!res.headersSent) res.status(500).json({ message: error.message });
+    else res.end();
+  }
+});
+
+// Anything else under /uploads is a bad path rather than a missing file.
+app.use('/uploads', (req, res) => res.status(404).json({ message: 'File not found' }));
 
 // Health check answers WITHOUT touching the database, so it can distinguish
 // "the function is broken" from "the function is fine but the database is not".
