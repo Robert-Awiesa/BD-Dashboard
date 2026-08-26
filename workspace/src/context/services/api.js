@@ -1441,6 +1441,52 @@ export const bdApi = {
     return handleResponse(response);
   },
 
+  // --- Partner directory: who we work with, what they offer, how to reach them ---
+  async getPartners(filters = {}) {
+    const qs = new URLSearchParams(
+      Object.entries(filters).filter(([, v]) => v !== '' && v !== undefined)
+    ).toString();
+    const response = await fetch(`${API_BASE_URL}/partners${qs ? `?${qs}` : ''}`);
+    return handleResponse(response);
+  },
+
+  async addPartner(data) {
+    const response = await fetch(`${API_BASE_URL}/partners`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+  },
+
+  async updatePartner(id, data) {
+    const response = await fetch(`${API_BASE_URL}/partners/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+  },
+
+  async setPartnerArchived(id, archived) {
+    const response = await fetch(`${API_BASE_URL}/partners/${id}/archive`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ archived }),
+    });
+    return handleResponse(response);
+  },
+
+  async deletePartner(id) {
+    const response = await fetch(`${API_BASE_URL}/partners/${id}`, { method: 'DELETE' });
+    return handleResponse(response);
+  },
+
+  async getPartnerOwners() {
+    const response = await fetch(`${API_BASE_URL}/partners/owners`);
+    return handleResponse(response);
+  },
+
   async getProposals(filters = {}) {
     const params = new URLSearchParams(
       Object.entries(filters).filter(([, v]) => v !== '' && v !== null && v !== undefined)

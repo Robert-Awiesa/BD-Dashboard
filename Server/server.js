@@ -141,6 +141,7 @@ mount('/api/field-visits', './routes/fieldVisitRoutes');
 mount('/api/tasks', './routes/taskRoutes');
 mount('/api/outreach', './routes/outreachRoutes');
 mount('/api/proposals', './routes/proposalRoutes');
+mount('/api/partners', './routes/partnerRoutes');
 
 
 

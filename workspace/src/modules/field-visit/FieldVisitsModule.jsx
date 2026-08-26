@@ -169,6 +169,9 @@ const FieldVisitsModule = () => {
           <Button variant="primary" onClick={() => setFormState({ open: true, mode: 'log', visit: null })}>
             + Log a visit
           </Button>
+          <Button variant="primary"  onClick={() => setFormState({ open: true, mode: 'log', visit: null })}>
+            + Log a Discovery
+          </Button>
         </div>
       </div>
 
