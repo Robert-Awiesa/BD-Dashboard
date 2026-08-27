@@ -21,6 +21,17 @@ const StatCard = ({ label, value, subtext, icon, highlight = false }) => (
   </div>
 );
 
+const safeIsoDate = (val) => {
+  if (!val) return '';
+  const d = new Date(val);
+  if (Number.isNaN(d.getTime())) return '';
+  try {
+    return d.toISOString().slice(0, 10);
+  } catch {
+    return '';
+  }
+};
+
 const formatDate = (val) => {
   if (!val) return '—';
   const d = new Date(val);
@@ -37,9 +48,10 @@ const formatShortDate = (val) => {
 
 const getRelativeDays = (val) => {
   if (!val) return '';
+  const d = new Date(val);
+  if (Number.isNaN(d.getTime())) return '';
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const d = new Date(val);
   const target = new Date(d.getFullYear(), d.getMonth(), d.getDate());
   const diff = Math.round((target - today) / (24 * 60 * 60 * 1000));
   if (diff === 0) return 'Today';
@@ -108,7 +120,7 @@ const GhanaHolidaysWorkspace = () => {
     setSavingNotes(true);
     try {
       const updated = await bdApi.updateHoliday(selectedHoliday._id, { notes: editingNotes });
-      setHolidays((prev) => (Array.isArray(prev) ? prev.map((h) => (h._id === updated._id ? updated : h)) : []));
+      setHolidays((prev) => (Array.isArray(prev) ? prev.map((h) => (h && h._id === updated._id ? updated : h)) : []));
       setSelectedHoliday(null);
     } catch (err) {
       alert(`Error saving notes: ${err.message}`);
@@ -118,7 +130,7 @@ const GhanaHolidaysWorkspace = () => {
   };
 
   const activeAlerts = useMemo(
-    () => (Array.isArray(holidays) ? holidays.filter((h) => h?.status === 'Active Reminder') : []),
+    () => (Array.isArray(holidays) ? holidays.filter((h) => h && h.status === 'Active Reminder') : []),
     [holidays]
   );
 
@@ -135,10 +147,10 @@ const GhanaHolidaysWorkspace = () => {
     }
     for (let d = 1; d <= totalDays; d++) {
       const dateObj = new Date(year, currentCalMonth, d);
-      const key = dateObj.toISOString().slice(0, 10);
-      const matchedHolidays = holidays.filter((h) => {
-        const hDate = new Date(h.date).toISOString().slice(0, 10);
-        return hDate === key;
+      const key = safeIsoDate(dateObj);
+      const matchedHolidays = (Array.isArray(holidays) ? holidays : []).filter((h) => {
+        if (!h || !h.date) return false;
+        return safeIsoDate(h.date) === key;
       });
       days.push({ dayNumber: d, dateObj, holidays: matchedHolidays });
     }
