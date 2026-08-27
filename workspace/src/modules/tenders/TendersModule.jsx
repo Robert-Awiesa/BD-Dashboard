@@ -28,15 +28,15 @@ const TABS = [
 
 const StatTile = ({ label, value, tone = 'default', hint }) => {
   const tones = {
-    default: 'text-navy-900',
-    warn: 'text-amber-700',
-    danger: 'text-red-700',
-    good: 'text-forest-700',
+    default: 'text-navy-950',
+    warn: 'text-amber-800',
+    danger: 'text-red-800',
+    good: 'text-emerald-800',
   };
   return (
-    <div className="rounded-lg border border-slate-200 bg-white px-3 py-2.5">
+    <div className="rounded-xl border border-slate-200/90 bg-white px-3.5 py-3 shadow-2xs">
       <p className={`text-xl font-bold ${tones[tone]}`}>{value}</p>
-      <p className="text-[11px] text-slate-500 leading-tight mt-0.5">{label}</p>
+      <p className="text-[11px] font-semibold text-slate-500 leading-tight mt-0.5">{label}</p>
       {hint && <p className="text-[10px] text-slate-400 leading-tight mt-0.5">{hint}</p>}
     </div>
   );
@@ -391,14 +391,14 @@ const TendersModule = () => {
                 )}
               </div>
             ) : (
-              <div className="bg-white border border-slate-200 rounded-xl shadow-sm divide-y divide-slate-100">
+              <div className="bg-white border border-slate-200/90 rounded-2xl shadow-2xs overflow-hidden divide-y divide-slate-100">
                 {tenders.map((t) => <TenderRow key={t._id} tender={t} onOpen={openTenderDetail} />)}
               </div>
             )
           ) : eois.length === 0 ? (
-            <div className="bg-white border border-slate-200 rounded-xl p-10 text-center">
+            <div className="bg-white border border-slate-200/90 rounded-2xl p-10 text-center shadow-2xs">
               <p className="text-3xl mb-2" aria-hidden="true">📨</p>
-              <h3 className="text-base font-semibold text-navy-900">
+              <h3 className="text-base font-semibold text-navy-950">
                 {filtersActive ? 'No EOIs match those filters' : 'No expressions of interest yet'}
               </h3>
               <p className="text-sm text-slate-600 mt-1 max-w-md mx-auto">
@@ -415,7 +415,7 @@ const TendersModule = () => {
               )}
             </div>
           ) : (
-            <div className="bg-white border border-slate-200 rounded-xl shadow-sm divide-y divide-slate-100">
+            <div className="bg-white border border-slate-200/90 rounded-2xl shadow-2xs overflow-hidden divide-y divide-slate-100">
               {eois.map((e) => <EoiRow key={e._id} eoi={e} onOpen={openEoiDetail} />)}
             </div>
           )}
@@ -425,7 +425,7 @@ const TendersModule = () => {
             closing, and when? One list across both tabs, because a deadline
             does not care which tab it lives on. */}
         <div className="xl:col-span-1 space-y-4">
-          <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+          <div className="bg-white border border-slate-200/90 rounded-2xl p-4 shadow-2xs">
             <div className="flex items-center justify-between gap-2">
               <h3 className="text-sm font-semibold text-navy-900">Deadline runway</h3>
               <select

@@ -17,11 +17,11 @@ const EventCard = ({ event, onEdit, onDelete, onToggleTask, onUpdateAttendee, on
   const canEnterMetrics = status === 'Completed';
 
   return (
-    <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+    <div className="bg-white border border-slate-200/90 rounded-2xl shadow-2xs hover:shadow-xs hover:border-navy-300 transition-all overflow-hidden">
       <div className="p-4 space-y-2.5">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
-            <h4 className="font-semibold text-navy-900 text-sm truncate">{event.title}</h4>
+            <h4 className="font-bold text-navy-950 text-sm truncate">{event.title}</h4>
             <p className="text-xs text-slate-500 mt-0.5">{event.eventType}{event.episodeNumber ? ` · ${event.episodeNumber}` : ''}</p>
           </div>
           <Badge label={status} status={statusBadgeTone(status)} />

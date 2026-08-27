@@ -22,11 +22,11 @@ import {
 } from './clientConstants';
 
 const StatTile = ({ label, value, tone = 'default' }) => {
-  const tones = { default: 'text-navy-900', warn: 'text-amber-700', danger: 'text-red-700' };
+  const tones = { default: 'text-navy-950', warn: 'text-amber-800', danger: 'text-red-800' };
   return (
-    <div className="rounded-lg border border-slate-200 bg-white px-3 py-2.5">
+    <div className="rounded-xl border border-slate-200/90 bg-white px-3.5 py-3 shadow-2xs">
       <p className={`text-xl font-bold ${tones[tone]}`}>{value}</p>
-      <p className="text-[11px] text-slate-500 leading-tight mt-0.5">{label}</p>
+      <p className="text-[11px] font-semibold text-slate-500 leading-tight mt-0.5">{label}</p>
     </div>
   );
 };
@@ -206,7 +206,7 @@ const ClientRelationsModule = () => {
           )}
 
           {/* Filters */}
-          <div className="bg-white border border-slate-200 rounded-xl p-3 shadow-sm">
+          <div className="bg-white border border-slate-200/90 rounded-2xl p-3.5 shadow-2xs">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
               <input
                 type="search" value={search} onChange={(e) => setSearch(e.target.value)}
@@ -244,12 +244,12 @@ const ClientRelationsModule = () => {
           {/* Client list */}
           {loading ? (
             <div className="space-y-2">
-              {[0, 1, 2].map((i) => <div key={i} className="skeleton h-20 rounded-xl" />)}
+              {[0, 1, 2].map((i) => <div key={i} className="skeleton h-20 rounded-2xl" />)}
             </div>
           ) : clients.length === 0 ? (
-            <div className="bg-white border border-slate-200 rounded-xl p-10 text-center">
+            <div className="bg-white border border-slate-200/90 rounded-2xl p-10 text-center shadow-2xs">
               <p className="text-3xl mb-2" aria-hidden="true">🤝</p>
-              <h3 className="text-base font-semibold text-navy-900">
+              <h3 className="text-base font-semibold text-navy-950">
                 {filtersActive ? 'No clients match those filters' : 'No clients yet'}
               </h3>
               <p className="text-sm text-slate-600 mt-1 max-w-md mx-auto">
@@ -264,7 +264,7 @@ const ClientRelationsModule = () => {
               )}
             </div>
           ) : (
-            <div className="bg-white border border-slate-200 rounded-xl shadow-sm divide-y divide-slate-100">
+            <div className="bg-white border border-slate-200/90 rounded-2xl shadow-2xs overflow-hidden divide-y divide-slate-100">
               {clients.map((c) => (
                 <button
                   key={c._id}
