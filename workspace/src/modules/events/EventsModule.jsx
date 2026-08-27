@@ -9,12 +9,14 @@ import EventWizardModal from './EventWizardModal';
 import EventMetricsModal from './EventMetricsModal';
 import MilestoneModal from './MilestoneModal';
 import DgEventWorkspace from './DgEventWorkspace';
+import GhanaHolidaysWorkspace from './GhanaHolidaysWorkspace';
 import AddMediaModal from './AddMediaModal';
 import { EVENT_FILTERS, MONTHS } from './eventConstants';
 
 const TABS = [
   { key: 'hub', label: 'Operational Hub' },
   { key: 'dg', label: 'DG Annual Event' },
+  { key: 'holidays', label: 'Ghana Holidays 🇬🇭' },
 ];
 
 const EventsModule = () => {
@@ -273,6 +275,8 @@ const EventsModule = () => {
 
       {activeTab === 'dg' ? (
         <DgEventWorkspace />
+      ) : activeTab === 'holidays' ? (
+        <GhanaHolidaysWorkspace />
       ) : (
         <>
           <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 space-y-2">

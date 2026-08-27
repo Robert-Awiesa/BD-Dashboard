@@ -205,9 +205,11 @@ const startReminderSweep = () => {
   if (IS_SERVERLESS || process.env.DISABLE_CRON === 'true') return;
   const cron = require('node-cron');
   const { evaluateReminders } = require('./services/reminderEngine');
+  const { syncGhanaHolidays } = require('./services/ghanaHolidayService');
 
   const sweep = () =>
     connectDB()
+      .then(() => syncGhanaHolidays())
       .then(evaluateReminders)
       .then((r) => console.log(`Reminder sweep: ${r.length} reminder(s) raised`))
       .catch((err) => console.error('Reminder sweep failed:', err.message));

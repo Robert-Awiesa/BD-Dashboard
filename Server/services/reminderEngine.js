@@ -611,6 +611,14 @@ async function evaluateReminders() {
   await evaluateTenders(today, todayKey, results);
   await evaluateEois(today, todayKey, results);
 
+  try {
+    const { evaluateGhanaHolidayReminders } = require('./ghanaHolidayService');
+    const holidayReminders = await evaluateGhanaHolidayReminders();
+    results.push(...holidayReminders);
+  } catch (err) {
+    console.error('Error evaluating holiday reminders during sweep:', err.message);
+  }
+
   return results;
 }
 

@@ -746,6 +746,39 @@ export const bdApi = {
     return handleResponse(response);
   },
 
+  // Ghana Public Holidays endpoints
+  async getHolidays(filters = {}) {
+    const params = new URLSearchParams(
+      Object.entries(filters).filter(([, v]) => v !== '' && v !== null && v !== undefined)
+    );
+    const query = params.toString();
+    const response = await fetch(`${API_BASE_URL}/holidays${query ? `?${query}` : ''}`);
+    return handleResponse(response);
+  },
+
+  async getHolidayStats() {
+    const response = await fetch(`${API_BASE_URL}/holidays/stats`);
+    return handleResponse(response);
+  },
+
+  async syncHolidays(year = new Date().getFullYear()) {
+    const response = await fetch(`${API_BASE_URL}/holidays/sync`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ year }),
+    });
+    return handleResponse(response);
+  },
+
+  async updateHoliday(id, data) {
+    const response = await fetch(`${API_BASE_URL}/holidays/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+  },
+
   // The stage manifest — activities and declared fields per stage — so the UI
   // renders from the server's spec instead of keeping a copy that drifts.
   async getDgMeta() {
