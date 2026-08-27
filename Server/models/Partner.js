@@ -33,6 +33,10 @@ const partnerSchema = new mongoose.Schema(
   {
     name: { type: String, required: true, trim: true },
 
+    // Logo image URL (optional)
+    logoUrl: { type: String, default: '', trim: true },
+    partnerType: { type: String, default: 'Strategic Partner', trim: true },
+
     // The reason the directory exists. Required, because a partner nobody can
     // describe is not findable by the person who needs them.
     offering: { type: String, required: true, trim: true },

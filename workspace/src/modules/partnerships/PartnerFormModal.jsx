@@ -7,6 +7,8 @@ const blankContact = { name: '', role: '', email: '', phone: '', isPrimary: fals
 
 const emptyForm = {
   name: '',
+  logoUrl: '',
+  partnerType: 'Strategic Partner',
   offering: '',
   website: '',
   location: '',
@@ -124,18 +126,34 @@ const PartnerFormModal = ({ open, onClose, onSaved, existing = null, currentUser
           </p>
         )}
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="sm:col-span-1">
             <label className="form-label">Organisation *</label>
             <input type="text" value={form.name} onChange={set('name')}
               className="form-input" placeholder="e.g. OpenText" />
           </div>
-          <div>
+          <div className="sm:col-span-1">
+            <label className="form-label">Partner Category</label>
+            <select value={form.partnerType} onChange={set('partnerType')} className="form-input">
+              <option value="Strategic Partner">Strategic Partner</option>
+              <option value="Technology / OEM">Technology / OEM</option>
+              <option value="Reseller / Distributor">Reseller / Distributor</option>
+              <option value="Implementation Partner">Implementation Partner</option>
+              <option value="Consulting / Advisory">Consulting / Advisory</option>
+            </select>
+          </div>
+          <div className="sm:col-span-1">
             <label className="form-label">Who here knows them</label>
             <input type="text" list="partner-owners" value={form.relationshipOwner}
               onChange={set('relationshipOwner')} className="form-input"
               placeholder="Somebody to ask" />
           </div>
+        </div>
+
+        <div>
+          <label className="form-label">Partner Logo URL (Optional)</label>
+          <input type="url" value={form.logoUrl} onChange={set('logoUrl')}
+            className="form-input" placeholder="https://domain.com/logo.png" />
         </div>
 
         <div>
