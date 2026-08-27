@@ -47,11 +47,12 @@ const refreshClientContact = async (clientId) => {
 // ====================
 
 exports.getVisits = async (filters = {}) => {
-  const { client, status, loggedBy, search, from, to, awaitingReport, limit = 100 } = filters;
+  const { client, status, visitType, loggedBy, search, from, to, awaitingReport, limit = 100 } = filters;
 
   const query = { ...VISIT_QUERY };
   if (client) query.client = client;
   if (status) query.visitStatus = status;
+  if (visitType) query.visitType = visitType;
   if (loggedBy) query.loggedBy = loggedBy;
 
   if (from || to) {
@@ -67,6 +68,7 @@ exports.getVisits = async (filters = {}) => {
       { summary: rx }, { locationName: rx }, { address: rx }, { purpose: rx },
       { observations: rx }, { detail: rx }, { loggedBy: rx },
       { teamAttendees: rx }, { clientAttendees: rx }, { contactName: rx },
+      { 'discoveryDetails.clientRequest': rx }, { 'discoveryDetails.summary': rx },
     ];
   }
 
@@ -93,19 +95,35 @@ exports.getVisitById = async (id) => {
 
 const buildPayload = (data) => {
   const visitStatus = data.visitStatus || 'Completed';
+  const visitType = data.visitType || (data.discoveryDetails ? 'Discovery' : 'Standard');
   const occurredAt = data.occurredAt ? new Date(data.occurredAt) : new Date();
   const locationName = (data.locationName || '').trim();
+
+  const discoveryDetails = data.discoveryDetails ? {
+    operation: data.discoveryDetails.operation || '',
+    personnel: data.discoveryDetails.personnel || '',
+    contactEmail: data.discoveryDetails.contactEmail || '',
+    clientRequest: data.discoveryDetails.clientRequest || '',
+    summary: data.discoveryDetails.summary || '',
+    painPoints: Array.isArray(data.discoveryDetails.painPoints) ? data.discoveryDetails.painPoints : [],
+    propositions: Array.isArray(data.discoveryDetails.propositions) ? data.discoveryDetails.propositions : [],
+    usersCount: data.discoveryDetails.usersCount || '',
+    processFlow: data.discoveryDetails.processFlow || '',
+    additionalNotes: data.discoveryDetails.additionalNotes || '',
+  } : undefined;
 
   return {
     type: 'Site Visit',
     client: data.client,
     visitStatus,
+    visitType,
     // A visit still needs the one-line summary every interaction carries, but
     // nobody should have to type it twice — fall back to the purpose, then to
     // a sentence built from where they went.
     summary: (data.summary || '').trim()
       || (data.purpose || '').trim()
-      || (locationName ? `Site visit — ${locationName}` : 'Site visit'),
+      || (discoveryDetails?.clientRequest ? `Discovery — ${discoveryDetails.clientRequest}` : '')
+      || (locationName ? `${visitType === 'Discovery' ? 'Discovery Session' : 'Site visit'} — ${locationName}` : 'Site visit'),
     detail: data.detail || '',
     occurredAt,
     loggedBy: data.loggedBy,
@@ -121,6 +139,7 @@ const buildPayload = (data) => {
     photos: Array.isArray(data.photos) ? data.photos.filter((p) => p && p.url) : [],
     durationMinutes: data.durationMinutes ? Number(data.durationMinutes) : undefined,
     linkedEvent: data.linkedEvent || undefined,
+    discoveryDetails,
   };
 };
 
@@ -142,6 +161,7 @@ const validate = (payload) => {
 // record their own uploader, and an entry about the trail is noise.
 const TRACKED = {
   visitStatus: 'Status',
+  visitType: 'Visit Type',
   occurredAt: 'Date',
   locationName: 'Site',
   address: 'Address',

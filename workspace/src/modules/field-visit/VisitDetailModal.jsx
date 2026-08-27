@@ -101,6 +101,7 @@ const VisitDetailModal = ({ open, onClose, visit, onChanged, onEdit, onDelete })
 
         <div className="flex flex-wrap items-center gap-1.5">
           <Badge label={visit.visitStatus} status={STATUS_BADGE[visit.visitStatus]} />
+          {visit.visitType === 'Discovery' && <Badge label="Discovery Session" status="purple" />}
           {awaiting && <Badge label="Awaiting write-up" status="danger" />}
           {planned && <span className="text-xs text-slate-500">{relativeDays(visit.occurredAt)}</span>}
           {visit.sentiment && !planned && (
@@ -164,14 +165,94 @@ const VisitDetailModal = ({ open, onClose, visit, onChanged, onEdit, onDelete })
           </form>
         )}
 
-        {visit.purpose && (
+        {/* --- Discovery Session Structured View --- */}
+        {visit.discoveryDetails && (
+          <div className="rounded-xl border border-purple-200 bg-purple-50/30 p-4 space-y-4">
+            <div className="flex items-center justify-between border-b border-purple-200 pb-2">
+              <h3 className="text-sm font-bold text-purple-950 uppercase tracking-wide">
+                📋 Discovery Session Report
+              </h3>
+              {visit.discoveryDetails.clientRequest && (
+                <span className="text-xs bg-purple-100 text-purple-800 font-semibold px-2 py-0.5 rounded">
+                  Request: {visit.discoveryDetails.clientRequest}
+                </span>
+              )}
+            </div>
+
+            {visit.discoveryDetails.summary && (
+              <div>
+                <p className="text-[11px] font-bold uppercase tracking-wide text-purple-800">Executive Summary</p>
+                <p className="text-xs text-slate-700 mt-1 whitespace-pre-wrap leading-relaxed">{visit.discoveryDetails.summary}</p>
+              </div>
+            )}
+
+            {visit.discoveryDetails.painPoints?.length > 0 && (
+              <div>
+                <p className="text-[11px] font-bold uppercase tracking-wide text-red-800 mb-2">Pain Points & Challenges</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {visit.discoveryDetails.painPoints.map((item, idx) => (
+                    <div key={idx} className="bg-white border border-slate-200 rounded-lg p-2.5 shadow-2xs">
+                      <p className="text-xs font-semibold text-navy-900">• {item.title}</p>
+                      {item.description && <p className="text-[11px] text-slate-600 mt-0.5">{item.description}</p>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {visit.discoveryDetails.propositions?.length > 0 && (
+              <div>
+                <p className="text-[11px] font-bold uppercase tracking-wide text-emerald-800 mb-2">Proposed Solutions & System Needs</p>
+                <div className="space-y-2">
+                  {visit.discoveryDetails.propositions.map((item, idx) => (
+                    <div key={idx} className="bg-white border border-slate-200 rounded-lg p-2.5 shadow-2xs">
+                      <p className="text-xs font-semibold text-navy-900">{idx + 1}. {item.title}</p>
+                      {item.description && <p className="text-[11px] text-slate-600 mt-0.5">{item.description}</p>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-purple-200/60">
+              {visit.discoveryDetails.usersCount && (
+                <div>
+                  <span className="text-[11px] font-semibold text-slate-500">Target System Users: </span>
+                  <span className="text-xs font-medium text-navy-900">{visit.discoveryDetails.usersCount}</span>
+                </div>
+              )}
+              {visit.discoveryDetails.operation && (
+                <div>
+                  <span className="text-[11px] font-semibold text-slate-500">Operation: </span>
+                  <span className="text-xs font-medium text-navy-900">{visit.discoveryDetails.operation}</span>
+                </div>
+              )}
+              {visit.discoveryDetails.processFlow && (
+                <div className="sm:col-span-2">
+                  <span className="text-[11px] font-semibold text-slate-500">Process Flow: </span>
+                  <p className="text-xs font-medium text-navy-900 mt-0.5 bg-white p-2 rounded border border-slate-200">
+                    {visit.discoveryDetails.processFlow}
+                  </p>
+                </div>
+              )}
+              {visit.discoveryDetails.additionalNotes && (
+                <div className="sm:col-span-2">
+                  <span className="text-[11px] font-semibold text-slate-500">Additional Notes: </span>
+                  <span className="text-xs text-slate-700">{visit.discoveryDetails.additionalNotes}</span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {!visit.discoveryDetails && visit.purpose && (
           <div className="rounded-lg border border-slate-200 px-3 py-2.5">
             <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Purpose</p>
             <p className="text-sm text-slate-700 mt-0.5">{visit.purpose}</p>
           </div>
         )}
 
-        {visit.observations && (
+        {!visit.discoveryDetails && visit.observations && (
           <div className="rounded-lg border border-slate-200 px-3 py-2.5">
             <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">What we found</p>
             <p className="text-sm text-slate-700 mt-0.5 whitespace-pre-wrap">{visit.observations}</p>

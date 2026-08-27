@@ -61,11 +61,35 @@ export const formatDuration = (minutes) => {
   return m ? `${h}h ${m}m` : `${h}h`;
 };
 
+export const VISIT_TYPES = ['Standard', 'Discovery'];
+
+export const TYPE_BADGE = {
+  Standard: 'info',
+  Discovery: 'purple',
+};
+
+export const DEFAULT_PAIN_POINTS = [
+  { title: 'Missed Follow Ups', description: 'Lack of automated reminders leading to forgotten maintenance checks' },
+  { title: 'Poor Communication', description: 'Manual updates cause phone tag and client frustration' },
+  { title: 'Scheduling Mess', description: 'Conflicts in appointment booking and service queueing' },
+  { title: 'Customer Complaints / Frustrations', description: 'Clients having to repeatedly call or wait on-site for status updates' },
+  { title: 'Wasted Staff Time', description: 'Manual paper-based registration and vehicle tracking overhead' },
+];
+
+export const DEFAULT_PROPOSITIONS = [
+  { title: 'Centralised CRM & Queuing System', description: 'Unified platform to register vehicles, assign queue numbers, and manage client records' },
+  { title: 'Automated SMS Alerts / Remote Updates', description: 'Step-by-step text notifications and interactive approval links for repair estimates' },
+  { title: 'On-Premises Waiting Lounge Display', description: 'Visual TV screen interface displaying vehicle plate numbers, current status, and pickup alerts' },
+  { title: 'Staff Check-In & Service Stage Portal', description: 'Digital check-in portal for front-desk agents and mechanics to update service stages (Diagnosing, In-Progress, Quality Check, Ready)' },
+  { title: 'Digital Change Requests & Approvals', description: 'Instant sharing of unexpected maintenance needs and cost updates for client digital sign-off' },
+];
+
 // A visit is either being booked or being written up. Those are different jobs
 // with different required fields, so the form declares which one it is.
 export const emptyVisitForm = {
   client: '',
   visitStatus: 'Completed',
+  visitType: 'Standard',
   locationName: '',
   address: '',
   occurredAt: new Date().toISOString().slice(0, 10),
@@ -78,6 +102,31 @@ export const emptyVisitForm = {
   sentiment: 'Neutral',
   durationMinutes: '',
   followUpNeeded: false,
+  commitmentDescription: '',
+  commitmentDue: '',
+};
+
+export const emptyDiscoveryForm = {
+  client: '',
+  visitStatus: 'Completed',
+  visitType: 'Discovery',
+  occurredAt: new Date().toISOString().slice(0, 10),
+  locationName: '',
+  address: '',
+  teamAttendees: '',
+  clientAttendees: '',
+  contactEmail: '',
+  operation: '',
+  personnel: '',
+  clientRequest: '',
+  summary: '',
+  painPoints: [{ title: '', description: '' }],
+  propositions: [{ title: '', description: '' }],
+  usersCount: '',
+  processFlow: '',
+  additionalNotes: '',
+  sentiment: 'Neutral',
+  durationMinutes: '',
   commitmentDescription: '',
   commitmentDue: '',
 };

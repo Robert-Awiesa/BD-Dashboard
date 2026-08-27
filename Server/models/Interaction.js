@@ -65,6 +65,7 @@ const interactionSchema = new mongoose.Schema(
     // Unlike every other interaction type a visit can be recorded *ahead* of
     // time, which is why it carries its own status.
     visitStatus: { type: String, enum: VISIT_STATUSES },
+    visitType: { type: String, enum: ['Standard', 'Discovery'], default: 'Standard' },
     locationName: { type: String, default: '' },
     address: { type: String, default: '' },
     purpose: { type: String, default: '' },
@@ -73,6 +74,30 @@ const interactionSchema = new mongoose.Schema(
     clientAttendees: [{ type: String }],
     photos: [photoSchema],
     durationMinutes: { type: Number },
+
+    // Discovery session specific structured details
+    discoveryDetails: {
+      operation: { type: String, default: '' },
+      personnel: { type: String, default: '' },
+      contactEmail: { type: String, default: '' },
+      clientRequest: { type: String, default: '' },
+      summary: { type: String, default: '' },
+      painPoints: [
+        {
+          title: { type: String, default: '' },
+          description: { type: String, default: '' },
+        },
+      ],
+      propositions: [
+        {
+          title: { type: String, default: '' },
+          description: { type: String, default: '' },
+        },
+      ],
+      usersCount: { type: String, default: '' },
+      processFlow: { type: String, default: '' },
+      additionalNotes: { type: String, default: '' },
+    },
 
     // A visit is booked, walked, written up and corrected — often by different
     // people days apart. Without a trail, "the purpose changed" or "the date

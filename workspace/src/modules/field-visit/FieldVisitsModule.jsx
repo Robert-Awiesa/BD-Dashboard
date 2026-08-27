@@ -4,6 +4,7 @@ import { useDashboard } from '../../context/hooks/DashboardContext';
 import Button from '../../components/common/Button';
 import Badge from '../../components/common/Badge';
 import VisitFormModal from './VisitFormModal';
+import DiscoveryFormModal from './DiscoveryFormModal';
 import VisitDetailModal from './VisitDetailModal';
 import {
   SENTIMENT_ICON,
@@ -31,9 +32,10 @@ const VisitRow = ({ visit, onOpen }) => (
   >
     <div className="flex flex-wrap items-center justify-between gap-2">
       <div className="flex items-center gap-2 min-w-0">
-        <span aria-hidden="true">📍</span>
+        <span aria-hidden="true">{visit.visitType === 'Discovery' ? '📋' : '📍'}</span>
         <span className="text-sm font-semibold text-navy-900 truncate">{visit.locationName}</span>
         <Badge label={visit.visitStatus} status={STATUS_BADGE[visit.visitStatus]} />
+        {visit.visitType === 'Discovery' && <Badge label="Discovery" status="purple" />}
         {visit.awaitingReport && <Badge label="No write-up" status="danger" />}
       </div>
       <div className="flex items-center gap-2 text-xs text-slate-500 shrink-0">
@@ -49,8 +51,10 @@ const VisitRow = ({ visit, onOpen }) => (
       <span>· {visit.loggedBy}</span>
       {visit.clientAttendees?.length > 0 && <span>· met {visit.clientAttendees.join(', ')}</span>}
     </div>
-    {(visit.observations || visit.purpose) && (
-      <p className="text-xs text-slate-600 mt-1 line-clamp-2">{visit.observations || visit.purpose}</p>
+    {(visit.observations || visit.purpose || visit.discoveryDetails?.clientRequest) && (
+      <p className="text-xs text-slate-600 mt-1 line-clamp-2">
+        {visit.discoveryDetails?.summary || visit.discoveryDetails?.clientRequest || visit.observations || visit.purpose}
+      </p>
     )}
   </button>
 );
@@ -66,6 +70,7 @@ const FieldVisitsModule = () => {
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [status, setStatus] = useState('');
+  const [visitTypeFilter, setVisitTypeFilter] = useState('');
   const [client, setClient] = useState('');
   const [awaitingOnly, setAwaitingOnly] = useState(false);
   const [clients, setClients] = useState([]);
@@ -87,6 +92,7 @@ const FieldVisitsModule = () => {
       bdApi.getFieldVisits({
         search: debouncedSearch,
         status,
+        visitType: visitTypeFilter,
         client,
         awaitingReport: awaitingOnly ? 'true' : '',
       }),
@@ -101,7 +107,7 @@ const FieldVisitsModule = () => {
       .catch((err) => { if (!ignore) setError(err.message); })
       .finally(() => { if (!ignore) setLoading(false); });
     return () => { ignore = true; };
-  }, [debouncedSearch, status, client, awaitingOnly, refreshToken, clientDataVersion]);
+  }, [debouncedSearch, status, visitTypeFilter, client, awaitingOnly, refreshToken, clientDataVersion]);
 
   useEffect(() => {
     bdApi.getClients({ sort: 'name' }).then(setClients).catch(() => setClients([]));
@@ -125,12 +131,20 @@ const FieldVisitsModule = () => {
     }
   };
 
-  const filtersActive = Boolean(search || status || client || awaitingOnly);
-  const resetFilters = () => { setSearch(''); setStatus(''); setClient(''); setAwaitingOnly(false); };
+  const filtersActive = Boolean(search || status || visitTypeFilter || client || awaitingOnly);
+  const resetFilters = () => { setSearch(''); setStatus(''); setVisitTypeFilter(''); setClient(''); setAwaitingOnly(false); };
 
   const modals = (
     <>
-      {formState.open && (
+      {formState.open && formState.mode === 'discovery' && (
+        <DiscoveryFormModal
+          open
+          onClose={() => setFormState({ open: false, mode: 'log', visit: null })}
+          onSaved={refresh}
+          existing={formState.visit}
+        />
+      )}
+      {formState.open && formState.mode !== 'discovery' && (
         <VisitFormModal
           open
           onClose={() => setFormState({ open: false, mode: 'log', visit: null })}
@@ -146,7 +160,14 @@ const FieldVisitsModule = () => {
           onClose={() => setDetailVisit(null)}
           visit={detailVisit}
           onChanged={(updated) => { setDetailVisit(updated); refresh(); }}
-          onEdit={(v) => { setDetailVisit(null); setFormState({ open: true, mode: 'log', visit: v }); }}
+          onEdit={(v) => {
+            setDetailVisit(null);
+            setFormState({
+              open: true,
+              mode: v.visitType === 'Discovery' ? 'discovery' : 'log',
+              visit: v,
+            });
+          }}
           onDelete={handleDelete}
         />
       )}
@@ -159,7 +180,7 @@ const FieldVisitsModule = () => {
         <div>
           <h1 className="text-2xl font-bold text-navy-900">Field Visits</h1>
           <p className="text-sm text-slate-600">
-            On-site client interactions — where the team went, who they saw, and what came out of it.
+            On-site client interactions — where the team went, who they saw, and discovery requirements.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -169,8 +190,8 @@ const FieldVisitsModule = () => {
           <Button variant="primary" onClick={() => setFormState({ open: true, mode: 'log', visit: null })}>
             + Log a visit
           </Button>
-          <Button variant="primary"  onClick={() => setFormState({ open: true, mode: 'log', visit: null })}>
-            + Log a Discovery
+          <Button variant="primary" onClick={() => setFormState({ open: true, mode: 'discovery', visit: null })}>
+            📋 Log a Discovery
           </Button>
         </div>
       </div>
@@ -234,20 +255,25 @@ const FieldVisitsModule = () => {
           )}
 
           <div className="bg-white border border-slate-200 rounded-xl p-3 shadow-sm">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2">
               <input
                 type="search" value={search} onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search site, findings, who we met…" className="form-input sm:col-span-2"
+                placeholder="Search site, findings, requirements…" className="form-input sm:col-span-2"
               />
               <select value={status} onChange={(e) => setStatus(e.target.value)} className="form-input text-sm">
                 <option value="">Any status</option>
                 {VISIT_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
               </select>
+              <select value={visitTypeFilter} onChange={(e) => setVisitTypeFilter(e.target.value)} className="form-input text-sm">
+                <option value="">All Types</option>
+                <option value="Standard">Standard Visit</option>
+                <option value="Discovery">Discovery Session</option>
+              </select>
               <select value={client} onChange={(e) => setClient(e.target.value)} className="form-input text-sm">
                 <option value="">Any client</option>
                 {clients.map((c) => <option key={c._id} value={c._id}>{c.name}</option>)}
               </select>
-              <label className="flex items-center gap-1.5 text-xs text-slate-600 cursor-pointer whitespace-nowrap px-1 sm:col-span-2">
+              <label className="flex items-center gap-1.5 text-xs text-slate-600 cursor-pointer whitespace-nowrap px-1 sm:col-span-3">
                 <input
                   type="checkbox" checked={awaitingOnly}
                   onChange={(e) => setAwaitingOnly(e.target.checked)}
