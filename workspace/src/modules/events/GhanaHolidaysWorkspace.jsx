@@ -75,10 +75,11 @@ const GhanaHolidaysWorkspace = () => {
         bdApi.getHolidays({ year, status: statusFilter, search }),
         bdApi.getHolidayStats(),
       ]);
-      setHolidays(list);
+      setHolidays(Array.isArray(list) ? list : []);
       setStats(s);
       setError(null);
     } catch (err) {
+      setHolidays([]);
       setError(err.message);
     } finally {
       setLoading(false);
@@ -107,7 +108,7 @@ const GhanaHolidaysWorkspace = () => {
     setSavingNotes(true);
     try {
       const updated = await bdApi.updateHoliday(selectedHoliday._id, { notes: editingNotes });
-      setHolidays((prev) => prev.map((h) => (h._id === updated._id ? updated : h)));
+      setHolidays((prev) => (Array.isArray(prev) ? prev.map((h) => (h._id === updated._id ? updated : h)) : []));
       setSelectedHoliday(null);
     } catch (err) {
       alert(`Error saving notes: ${err.message}`);
@@ -117,7 +118,7 @@ const GhanaHolidaysWorkspace = () => {
   };
 
   const activeAlerts = useMemo(
-    () => holidays.filter((h) => h.status === 'Active Reminder'),
+    () => (Array.isArray(holidays) ? holidays.filter((h) => h?.status === 'Active Reminder') : []),
     [holidays]
   );
 

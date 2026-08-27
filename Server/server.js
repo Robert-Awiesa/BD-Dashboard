@@ -142,6 +142,7 @@ mount('/api/tasks', './routes/taskRoutes');
 mount('/api/outreach', './routes/outreachRoutes');
 mount('/api/proposals', './routes/proposalRoutes');
 mount('/api/partners', './routes/partnerRoutes');
+mount('/api/holidays', './routes/holidayRoutes');
 
 
 
