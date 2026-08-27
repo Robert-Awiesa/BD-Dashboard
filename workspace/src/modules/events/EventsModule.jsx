@@ -230,43 +230,77 @@ const EventsModule = () => {
     }
   };
 
-  // A row is one celebration, not one record. Clicking it opens the person.
-  const renderCelebration = ({ record: m, occ }) => (
-    <button
-      key={`${m._id}-${occ.kind}-${occ.month}-${occ.day}`}
-      type="button"
-      onClick={() => setViewingMilestone(m)}
-      className="w-full text-left flex items-start gap-2.5 py-2 border-b border-slate-100 last:border-0 hover:bg-slate-50 -mx-4 px-4 cursor-pointer transition-colors"
-    >
-      <CelebrationIcon
-        kind={occ.kind}
-        milestoneType={m.milestoneType}
-        className={`w-5 h-5 shrink-0 mt-0.5 ${occ.kind === 'Birthday' ? 'text-amber-500' : 'text-navy-600'}`}
-      />
-      <div className="min-w-0 flex-1">
-        <p className="text-sm text-navy-900 font-medium truncate">
-          {m.participantName}
-          {m.isDraft && <span className="ml-1.5 text-[10px] text-amber-700 font-semibold">DRAFT</span>}
-        </p>
-        {/* Say plainly what is being celebrated and how long it has been —
-            "5 years on 01 Sept" rather than a bare date and a "5 yr" chip. */}
-        <p className="text-xs text-slate-500">
-          {occ.kind === 'Birthday'
-            ? `Birthday · ${MONTHS[occ.month - 1]} ${occ.day}`
-            : `${occ.years ? `${occ.years} year${occ.years === 1 ? '' : 's'}` : occ.label} · ${MONTHS[occ.month - 1]} ${occ.day}`}
-          {m.departmentOrCompany ? ` · ${m.departmentOrCompany}` : ''}
-        </p>
-      </div>
-      <div className="text-right shrink-0">
-        {occ.daysUntil !== null && occ.daysUntil <= 7 && (
-          <Badge
-            label={occ.daysUntil === 0 ? 'Today' : `${occ.daysUntil}d`}
-            status={occ.daysUntil === 0 ? 'success' : 'ongoing'}
-          />
-        )}
-      </div>
-    </button>
-  );
+  // Restructured Celebration Card Component
+  const renderCelebration = ({ record: m, occ }) => {
+    const isBirthday = occ.kind === 'Birthday';
+    const isToday = occ.daysUntil === 0;
+    const isSoon = occ.daysUntil !== null && occ.daysUntil <= 7;
+
+    return (
+      <button
+        key={`${m._id}-${occ.kind}-${occ.month}-${occ.day}`}
+        type="button"
+        onClick={() => setViewingMilestone(m)}
+        className={`w-full text-left p-3.5 rounded-xl border transition-all cursor-pointer flex items-center justify-between gap-3 group relative overflow-hidden ${
+          isToday
+            ? 'bg-gradient-to-r from-amber-500/10 via-amber-50 to-white border-amber-300 ring-1 ring-amber-400/30 shadow-2xs'
+            : isSoon
+            ? 'bg-amber-50/40 border-amber-200 hover:border-amber-400 hover:shadow-xs'
+            : 'bg-white border-slate-200/90 hover:border-navy-300 hover:shadow-xs'
+        }`}
+      >
+        <div className="flex items-center gap-3 min-w-0">
+          <div
+            className={`w-9 h-9 rounded-xl flex items-center justify-center text-base shrink-0 shadow-2xs ${
+              isBirthday
+                ? 'bg-gradient-to-br from-amber-400 to-amber-600 text-white'
+                : 'bg-gradient-to-br from-navy-800 to-slate-900 text-white'
+            }`}
+          >
+            {isBirthday ? '🎂' : '🎗'}
+          </div>
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5">
+              <h4 className="text-xs font-bold text-navy-950 group-hover:text-navy-700 transition-colors truncate">
+                {m.participantName}
+              </h4>
+              {m.isDraft && (
+                <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-amber-100 text-amber-900 uppercase">
+                  DRAFT
+                </span>
+              )}
+            </div>
+            <p className="text-[11px] text-slate-500 font-medium truncate mt-0.5">
+              {isBirthday
+                ? `Birthday · ${MONTHS[occ.month - 1]} ${occ.day}`
+                : `${occ.years ? `${occ.years} Year${occ.years === 1 ? '' : 's'}` : occ.label} · ${MONTHS[occ.month - 1]} ${occ.day}`}
+              {m.departmentOrCompany ? ` · ${m.departmentOrCompany}` : ''}
+            </p>
+          </div>
+        </div>
+
+        <div className="shrink-0">
+          {occ.daysUntil !== null && occ.daysUntil <= 14 ? (
+            <span
+              className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
+                isToday
+                  ? 'bg-emerald-600 text-white shadow-2xs animate-pulse'
+                  : occ.daysUntil <= 3
+                  ? 'bg-amber-100 text-amber-900 border border-amber-300'
+                  : 'bg-slate-100 text-slate-700 border border-slate-200'
+              }`}
+            >
+              {isToday ? '🎉 TODAY!' : `${occ.daysUntil}d`}
+            </span>
+          ) : (
+            <span className="text-[11px] text-slate-400 font-medium">
+              {MONTHS[occ.month - 1]} {occ.day}
+            </span>
+          )}
+        </div>
+      </button>
+    );
+  };
 
   return (
     <div className="space-y-6">
@@ -425,87 +459,156 @@ const EventsModule = () => {
                 </Button>
               </div>
 
-              <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-                <div className="px-4 py-2.5 border-b border-slate-200 bg-slate-50/70">
-                  <h3 className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Team Birthdays</h3>
+              {/* 1. Team Birthdays Card */}
+              <div className="bg-white border border-slate-200/90 rounded-2xl shadow-xs overflow-hidden">
+                <div className="px-4 py-3 border-b border-slate-100 bg-slate-50/80 flex items-center justify-between">
+                  <h3 className="text-xs font-bold text-navy-950 uppercase tracking-wider flex items-center gap-1.5">
+                    <span>🎂</span> Team Birthdays ({teamBirthdays.length})
+                  </h3>
+                  <span className="text-[10px] font-semibold text-slate-500 bg-slate-200/60 px-2 py-0.5 rounded-full">
+                    Internal
+                  </span>
                 </div>
-                <div className="px-4 py-1">
-                  {teamBirthdays.length === 0
-                    ? <p className="text-xs text-slate-400 py-3">No team birthdays recorded yet.</p>
-                    : teamBirthdays.map(renderCelebration)}
+                <div className="p-3 space-y-2">
+                  {teamBirthdays.length === 0 ? (
+                    <div className="text-center py-5 border border-dashed border-slate-200 rounded-xl bg-slate-50/40">
+                      <p className="text-xs font-medium text-slate-500">No team birthdays recorded yet.</p>
+                    </div>
+                  ) : (
+                    teamBirthdays.map(renderCelebration)
+                  )}
                 </div>
               </div>
 
-              <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-                <div className="px-4 py-2.5 border-b border-slate-200 bg-slate-50/70">
-                  <h3 className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Partner &amp; VIP Birthdays</h3>
+              {/* 2. Partner & VIP Birthdays Card */}
+              <div className="bg-white border border-slate-200/90 rounded-2xl shadow-xs overflow-hidden">
+                <div className="px-4 py-3 border-b border-slate-100 bg-slate-50/80 flex items-center justify-between">
+                  <h3 className="text-xs font-bold text-navy-950 uppercase tracking-wider flex items-center gap-1.5">
+                    <span>🤝</span> Partner &amp; VIP Birthdays ({externalBirthdays.length})
+                  </h3>
+                  <span className="text-[10px] font-semibold text-slate-500 bg-slate-200/60 px-2 py-0.5 rounded-full">
+                    Stakeholders
+                  </span>
                 </div>
-                <div className="px-4 py-1">
-                  {externalBirthdays.length === 0
-                    ? <p className="text-xs text-slate-400 py-3">No partner or VIP birthdays recorded yet.</p>
-                    : externalBirthdays.map(renderCelebration)}
+                <div className="p-3 space-y-2">
+                  {externalBirthdays.length === 0 ? (
+                    <div className="text-center py-5 border border-dashed border-slate-200 rounded-xl bg-slate-50/40">
+                      <p className="text-xs font-medium text-slate-500">No partner or VIP birthdays recorded yet.</p>
+                    </div>
+                  ) : (
+                    externalBirthdays.map(renderCelebration)
+                  )}
                 </div>
               </div>
 
-              <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-                <div className="px-4 py-2.5 border-b border-slate-200 bg-slate-50/70">
-                  <h3 className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Milestones</h3>
+              {/* 3. Work & Service Milestones Card */}
+              <div className="bg-white border border-slate-200/90 rounded-2xl shadow-xs overflow-hidden">
+                <div className="px-4 py-3 border-b border-slate-100 bg-slate-50/80 flex items-center justify-between">
+                  <h3 className="text-xs font-bold text-navy-950 uppercase tracking-wider flex items-center gap-1.5">
+                    <span>🎗</span> Work &amp; Service Milestones ({workMilestones.length})
+                  </h3>
+                  <span className="text-[10px] font-semibold text-slate-500 bg-slate-200/60 px-2 py-0.5 rounded-full">
+                    Anniversaries
+                  </span>
                 </div>
-                <div className="px-4 py-1">
-                  {workMilestones.length === 0
-                    ? <p className="text-xs text-slate-400 py-3">No milestones recorded yet.</p>
-                    : workMilestones.map(renderCelebration)}
+                <div className="p-3 space-y-2">
+                  {workMilestones.length === 0 ? (
+                    <div className="text-center py-5 border border-dashed border-slate-200 rounded-xl bg-slate-50/40">
+                      <p className="text-xs font-medium text-slate-500">No milestones recorded yet.</p>
+                    </div>
+                  ) : (
+                    workMilestones.map(renderCelebration)
+                  )}
                   {drafts.length > 0 && (
-                    <p className="text-[11px] text-amber-700 py-2 border-t border-slate-100">
-                      {drafts.length === 1
-                        ? '1 draft still needs a date before it will be chased.'
-                        : `${drafts.length} drafts still need a date before they will be chased.`}
+                    <p className="text-[11px] text-amber-800 bg-amber-50 p-2.5 rounded-xl border border-amber-200 font-medium">
+                      ⚠️ {drafts.length === 1
+                        ? '1 milestone draft still needs a date assigned.'
+                        : `${drafts.length} milestone drafts still need a date assigned.`}
                     </p>
                   )}
                 </div>
               </div>
 
-              <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-                <div className="px-4 py-2.5 border-b border-slate-200 bg-slate-50/70 flex items-center justify-between gap-2">
-                  <h3 className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Media Hub — Institutional Memory</h3>
+              {/* 4. Media Hub & Institutional Memory Card */}
+              <div className="bg-white border border-slate-200/90 rounded-2xl shadow-xs overflow-hidden">
+                <div className="px-4 py-3 border-b border-slate-100 bg-slate-50/80 flex items-center justify-between gap-2">
+                  <div>
+                    <h3 className="text-xs font-bold text-navy-950 uppercase tracking-wider flex items-center gap-1.5">
+                      <span>🎬</span> Media Hub &amp; Archive ({media.length})
+                    </h3>
+                    <p className="text-[10px] text-slate-500 mt-0.5">Photos, podcasts, audio recordings, and asset links</p>
+                  </div>
                   <button
                     type="button"
                     onClick={() => setShowMedia(true)}
-                    className="text-xs text-navy-700 hover:underline cursor-pointer shrink-0"
+                    className="text-xs font-semibold text-navy-800 hover:text-navy-950 bg-white hover:bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-200 transition-colors cursor-pointer shrink-0"
                   >
-                    + Add media
+                    + Add Media
                   </button>
                 </div>
                 <div className="p-4">
                   {media.length === 0 ? (
-                    <p className="text-xs text-slate-400">
-                      No media archived yet. Upload celebration photos or podcast audio, or attach a link to a recorded session.
-                    </p>
+                    <div className="text-center py-6 border border-dashed border-slate-200 rounded-xl bg-slate-50/50 space-y-1">
+                      <span className="text-2xl block mb-1">📸</span>
+                      <p className="text-xs font-semibold text-slate-700">No media archived yet</p>
+                      <p className="text-[11px] text-slate-400 max-w-xs mx-auto">
+                        Upload celebration photos, podcast audio recordings, or attach links to event assets.
+                      </p>
+                    </div>
                   ) : (
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-2 gap-3">
                       {media.map((m) => (
-                        <div key={m._id} className="group relative border border-slate-200 rounded-lg overflow-hidden hover:border-navy-300 transition-colors">
-                          <a href={m.url} target="_blank" rel="noopener noreferrer" className="block p-2">
+                        <div
+                          key={m._id}
+                          className="group relative border border-slate-200/90 rounded-xl overflow-hidden bg-slate-50/60 hover:bg-white hover:border-navy-300 hover:shadow-xs transition-all flex flex-col justify-between"
+                        >
+                          <a href={m.url} target="_blank" rel="noopener noreferrer" className="block p-2.5">
                             {m.kind === 'Photo' ? (
-                              <img src={m.url} alt={m.label || m.context} className="w-full h-20 object-cover rounded" />
+                              <div className="relative overflow-hidden rounded-lg h-24 bg-slate-100">
+                                <img
+                                  src={m.url}
+                                  alt={m.label || m.context}
+                                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                />
+                                <span className="absolute bottom-1 right-1 bg-slate-900/80 text-white text-[9px] font-bold px-1.5 py-0.5 rounded">
+                                  📷 Photo
+                                </span>
+                              </div>
                             ) : m.kind === 'Audio' ? (
-                              <div className="h-20 flex items-center justify-center bg-slate-50 rounded text-2xl">🎙</div>
+                              <div className="h-24 rounded-lg bg-gradient-to-br from-purple-900 via-purple-950 to-slate-900 text-white flex flex-col items-center justify-center p-2 text-center">
+                                <span className="text-2xl animate-pulse">🎙</span>
+                                <span className="text-[10px] font-bold text-purple-200 mt-1 truncate max-w-full">
+                                  Podcast / Audio
+                                </span>
+                              </div>
                             ) : (
-                              <div className="h-20 flex items-center justify-center bg-slate-50 rounded text-2xl">
-                                {m.kind === 'Video' ? '🎬' : m.kind === 'Document' ? '📄' : '🔗'}
+                              <div className="h-24 rounded-lg bg-gradient-to-br from-navy-900 to-slate-800 text-white flex flex-col items-center justify-center p-2 text-center">
+                                <span className="text-2xl">
+                                  {m.kind === 'Video' ? '🎬' : m.kind === 'Document' ? '📄' : '🔗'}
+                                </span>
+                                <span className="text-[10px] font-bold text-slate-300 mt-1 truncate max-w-full">
+                                  {m.kind}
+                                </span>
                               </div>
                             )}
-                            <p className="text-[11px] text-slate-700 truncate mt-1 font-medium">{m.label || m.kind}</p>
-                            <p className="text-[10px] text-slate-400 truncate">{m.context}</p>
+                            <p className="text-xs text-navy-950 font-bold truncate mt-2 group-hover:text-navy-700">
+                              {m.label || m.kind}
+                            </p>
+                            <p className="text-[10px] text-slate-500 truncate mt-0.5">
+                              {m.context || 'Institutional asset'}
+                            </p>
                           </a>
                           {m.kind === 'Audio' && (
-                            <audio controls src={m.url} className="w-full h-7 px-2 pb-2" />
+                            <div className="px-2 pb-2">
+                              <audio controls src={m.url} className="w-full h-7 rounded" />
+                            </div>
                           )}
                           <button
                             type="button"
                             onClick={() => handleDeleteMedia(m)}
-                            className="absolute top-1 right-1 w-5 h-5 rounded bg-white/90 border border-slate-200 text-red-600 text-xs leading-none opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                            className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-white/90 shadow-2xs border border-slate-200 text-red-600 text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer hover:bg-red-50"
                             aria-label="Remove media"
+                            title="Remove media"
                           >
                             ×
                           </button>
