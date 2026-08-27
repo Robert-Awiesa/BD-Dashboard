@@ -209,7 +209,7 @@ const GhanaHolidaysWorkspace = () => {
           />
           <StatCard
             label="Next Ghana Holiday"
-            value={stats?.daysToNext !== null ? (stats.daysToNext === 0 ? 'Today!' : `${stats.daysToNext} days`) : '—'}
+            value={stats && stats.daysToNext != null ? (stats.daysToNext === 0 ? 'Today!' : `${stats.daysToNext} days`) : '—'}
             subtext={stats?.nextHoliday ? stats.nextHoliday.name : 'No more upcoming this year'}
             icon="🇬🇭"
           />
