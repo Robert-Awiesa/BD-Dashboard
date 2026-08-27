@@ -11,7 +11,7 @@ const Eoi = require('../models/Eoi');
 const Proposal = require('../models/Proposal');
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
-const REMINDER_LEAD_DAYS = 2;
+const REMINDER_LEAD_DAYS = 3; // Tiered alerts: 3 days before, 24h before (1 day), and deadline day (0 days)
 
 const todayDateOnly = () => {
   const now = new Date();
@@ -33,10 +33,30 @@ const dateOnly = (value) => {
 const daysBetween = (a, b) => Math.round((b - a) / MS_PER_DAY);
 
 const upsertReminder = async (payload) => {
-  const { sourceType, sourceId, reminderDate } = payload;
+  const { sourceType, sourceId, reminderDate, reminderType, deadlineDate } = payload;
+  const lifecycleStatus = (reminderType === 'overdue' || reminderType === 'today') ? 'Active Alert' : 'Upcoming';
+  
+  const updatePayload = {
+    ...payload,
+    lifecycleStatus,
+    currentDeadlineDate: deadlineDate || reminderDate,
+  };
+
+  // Find existing reminder to preserve originalDeadlineDate if already set
+  const existing = await Reminder.findOne({ sourceType, sourceId, reminderDate });
+  if (existing) {
+    // If it's already formally Rescheduled or Completed for this date, keep it actioned
+    if (existing.lifecycleStatus === 'Rescheduled' || existing.lifecycleStatus === 'Completed') {
+      return existing;
+    }
+    updatePayload.originalDeadlineDate = existing.originalDeadlineDate || deadlineDate || reminderDate;
+  } else {
+    updatePayload.originalDeadlineDate = deadlineDate || reminderDate;
+  }
+
   return Reminder.findOneAndUpdate(
     { sourceType, sourceId, reminderDate },
-    payload,
+    updatePayload,
     { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true }
   );
 };

@@ -361,6 +361,70 @@ exports.actionReminder = async (id) => {
   return updated;
 };
 
+exports.rescheduleReminder = async (id, { newDate, reason, rescheduledBy = '' }) => {
+  const reminder = await Reminder.findById(id);
+  if (!reminder) throw new Error('Reminder not found');
+
+  const previousDate = reminder.currentDeadlineDate || reminder.originalDeadlineDate || reminder.reminderDate;
+  const historyEntry = {
+    previousDate,
+    newDate,
+    reason: reason || 'Deadline rescheduled',
+    rescheduledAt: new Date(),
+    rescheduledBy,
+  };
+
+  reminder.rescheduleHistory.push(historyEntry);
+  reminder.currentDeadlineDate = newDate;
+  reminder.lifecycleStatus = 'Rescheduled';
+  reminder.actioned = true;
+  reminder.actionedAt = new Date();
+  await reminder.save();
+
+  // Propagate date change to underlying source model where appropriate
+  try {
+    if (reminder.sourceType === 'Campaign') {
+      await Campaign.findByIdAndUpdate(reminder.sourceId, { startDate: newDate, status: 'Planning' });
+    } else if (reminder.sourceType === 'Event') {
+      await Event.findByIdAndUpdate(reminder.sourceId, { startDate: newDate });
+    } else if (reminder.sourceType === 'Tender') {
+      await Tender.findByIdAndUpdate(reminder.sourceId, { deadline: newDate });
+    }
+  } catch (err) {
+    console.error(`Source model date update warning for ${reminder.sourceType} ${reminder.sourceId}:`, err.message);
+  }
+
+  return reminder;
+};
+
+exports.completeReminder = async (id, { completionNotes = '', deliverables = '', performanceData = {}, completedBy = '' }) => {
+  const reminder = await Reminder.findById(id);
+  if (!reminder) throw new Error('Reminder not found');
+
+  reminder.performanceMetrics = {
+    completedAt: new Date(),
+    completedBy,
+    completionNotes,
+    deliverables,
+    performanceData,
+  };
+  reminder.lifecycleStatus = 'Completed';
+  reminder.actioned = true;
+  reminder.actionedAt = new Date();
+  await reminder.save();
+
+  // Propagate status update to underlying source model where appropriate
+  try {
+    if (reminder.sourceType === 'Campaign') {
+      await Campaign.findByIdAndUpdate(reminder.sourceId, { status: 'Completed', metricsCompletedAt: new Date() });
+    }
+  } catch (err) {
+    console.error(`Source model completion warning for ${reminder.sourceType} ${reminder.sourceId}:`, err.message);
+  }
+
+  return reminder;
+};
+
 // ====================
 // EVENT SERVICES
 // ====================

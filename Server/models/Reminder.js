@@ -2,7 +2,29 @@ const mongoose = require('mongoose');
 
 // 'Interaction' rather than 'FieldVisit' because sourceId uses refPath — the
 // value has to match a registered model name for population to resolve.
-const SOURCE_TYPES = ['Campaign', 'Event', 'Milestone', 'Document', 'Client', 'Interaction', 'Proposal', 'OutreachCampaign', 'Tender', 'Eoi'];
+const SOURCE_TYPES = ['Campaign', 'Event', 'Milestone', 'Document', 'Client', 'Interaction', 'Proposal', 'OutreachCampaign', 'Tender', 'Eoi', 'Holiday'];
+
+const rescheduleEntrySchema = new mongoose.Schema(
+  {
+    previousDate: { type: String, required: true },
+    newDate: { type: String, required: true },
+    reason: { type: String, required: true },
+    rescheduledAt: { type: Date, default: Date.now },
+    rescheduledBy: { type: String, default: '' },
+  },
+  { _id: false }
+);
+
+const completionMetricsSchema = new mongoose.Schema(
+  {
+    completedAt: { type: Date, default: Date.now },
+    completedBy: { type: String, default: '' },
+    completionNotes: { type: String, default: '' },
+    deliverables: { type: String, default: '' },
+    performanceData: { type: mongoose.Schema.Types.Mixed, default: {} },
+  },
+  { _id: false }
+);
 
 // One row per (source, calendar day). Polymorphic rather than one collection
 // per module, so the dashboard can render a single unified notification feed
@@ -24,6 +46,23 @@ const reminderSchema = new mongoose.Schema(
     message: { type: String, required: true },
     responsiblePerson: { type: String, default: '' },
     link: { type: String, default: '' }, // meeting URL / venue, surfaced in the alert
+
+    // Lifecycle resolution status
+    lifecycleStatus: {
+      type: String,
+      enum: ['Upcoming', 'Active Alert', 'Rescheduled', 'Completed'],
+      default: 'Upcoming',
+    },
+
+    // Deadline tracking
+    originalDeadlineDate: { type: String, default: '' },
+    currentDeadlineDate: { type: String, default: '' },
+
+    // Audit trail for rescheduling
+    rescheduleHistory: [rescheduleEntrySchema],
+
+    // Early completion & performance logging
+    performanceMetrics: completionMetricsSchema,
 
     actioned: { type: Boolean, default: false },
     actionedAt: { type: Date },

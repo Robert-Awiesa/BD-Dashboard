@@ -595,6 +595,24 @@ export const bdApi = {
     return handleResponse(response);
   },
 
+  async rescheduleReminder(id, { newDate, reason, rescheduledBy }) {
+    const response = await fetch(`${API_BASE_URL}/reminders/${id}/reschedule`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ newDate, reason, rescheduledBy }),
+    });
+    return handleResponse(response);
+  },
+
+  async completeReminder(id, { completionNotes, deliverables, performanceData, completedBy }) {
+    const response = await fetch(`${API_BASE_URL}/reminders/${id}/complete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ completionNotes, deliverables, performanceData, completedBy }),
+    });
+    return handleResponse(response);
+  },
+
   // Events & Forums
   async getEvents(filters = {}) {
     const params = new URLSearchParams();

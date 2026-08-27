@@ -3,7 +3,7 @@ const router = express.Router();
 const bdService = require('../services/bdService');
 const { evaluateReminders } = require('../services/reminderEngine');
 
-// Unified notification feed across campaigns, events and milestones.
+// Unified notification feed across campaigns, events, milestones, etc.
 router.get('/', async (req, res) => {
   try {
     res.json(await bdService.getOpenReminders({ sourceType: req.query.sourceType }));
@@ -22,11 +22,42 @@ router.post('/evaluate', async (req, res) => {
   }
 });
 
+// Dismiss reminder
 router.post('/:id/action', async (req, res) => {
   try {
     res.json(await bdService.actionReminder(req.params.id));
   } catch (error) {
     res.status(404).json({ message: error.message });
+  }
+});
+
+// Dynamic Rescheduling workflow
+router.post('/:id/reschedule', async (req, res) => {
+  try {
+    const { newDate, reason, rescheduledBy } = req.body;
+    if (!newDate || !reason) {
+      return res.status(400).json({ message: 'Both newDate and a mandatory reason for delay are required.' });
+    }
+    const updated = await bdService.rescheduleReminder(req.params.id, { newDate, reason, rescheduledBy });
+    res.json(updated);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+});
+
+// Early Completion & Metrics Bypass workflow
+router.post('/:id/complete', async (req, res) => {
+  try {
+    const { completionNotes, deliverables, performanceData, completedBy } = req.body;
+    const updated = await bdService.completeReminder(req.params.id, {
+      completionNotes,
+      deliverables,
+      performanceData,
+      completedBy,
+    });
+    res.json(updated);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
   }
 });
 

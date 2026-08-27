@@ -11,6 +11,8 @@ import MilestoneModal from './MilestoneModal';
 import DgEventWorkspace from './DgEventWorkspace';
 import GhanaHolidaysWorkspace from './GhanaHolidaysWorkspace';
 import AddMediaModal from './AddMediaModal';
+import RescheduleReminderModal from '../../components/common/RescheduleReminderModal';
+import CompleteReminderModal from '../../components/common/CompleteReminderModal';
 import { EVENT_FILTERS, MONTHS } from './eventConstants';
 
 const TABS = [
@@ -176,6 +178,9 @@ const EventsModule = () => {
     }
   };
 
+  const [reschedulingReminder, setReschedulingReminder] = useState(null);
+  const [completingReminder, setCompletingReminder] = useState(null);
+
   const dismissReminder = async (id) => {
     try {
       await bdApi.actionReminder(id);
@@ -183,6 +188,20 @@ const EventsModule = () => {
     } catch (err) {
       alert(`Error dismissing reminder: ${err.message}`);
     }
+  };
+
+  const handleRescheduled = async (id, data) => {
+    await bdApi.rescheduleReminder(id, data);
+    setReminders((prev) => prev.filter((r) => r._id !== id));
+    const fresh = await bdApi.getReminders();
+    setReminders(fresh.filter((r) => r.sourceType !== 'Campaign'));
+  };
+
+  const handleCompleted = async (id, data) => {
+    await bdApi.completeReminder(id, data);
+    setReminders((prev) => prev.filter((r) => r._id !== id));
+    const fresh = await bdApi.getReminders();
+    setReminders(fresh.filter((r) => r.sourceType !== 'Campaign'));
   };
 
   // Flatten records into celebrations: a team member yields both a birthday
@@ -295,19 +314,56 @@ const EventsModule = () => {
                 <p className="text-xs text-amber-700">Nothing needs chasing right now.</p>
               )}
               <div className="space-y-1.5">
-                {reminders.map((r) => (
-                  <div key={r._id} className="flex items-start justify-between gap-3 bg-white border border-amber-100 rounded-lg px-3 py-2">
-                    <div className="min-w-0">
-                      <span className={`text-xs font-medium ${r.reminderType === 'today' ? 'text-forest-700' : 'text-amber-700'}`}>
-                        {r.reminderType === 'today' ? 'TODAY' : 'UPCOMING'} · {r.sourceType}
-                      </span>
-                      <p className="text-sm text-slate-700">{r.message}</p>
-                      {r.responsiblePerson && <p className="text-xs text-slate-500">Owner: {r.responsiblePerson}</p>}
+                {reminders.map((r) => {
+                  const isOverdue = r.reminderType === 'overdue';
+                  const isToday = r.reminderType === 'today';
+                  return (
+                    <div
+                      key={r._id}
+                      className={`flex flex-wrap items-start justify-between gap-3 bg-white border rounded-lg px-3 py-2 ${
+                        isOverdue ? 'border-red-300 border-l-4 border-l-red-600 bg-red-50/20' : 'border-amber-100 border-l-4 border-l-amber-500'
+                      }`}
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5">
+                          <span className={`text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.2 rounded ${
+                            isOverdue ? 'bg-red-100 text-red-800' : isToday ? 'bg-amber-100 text-amber-900' : 'bg-slate-100 text-slate-700'
+                          }`}>
+                            {isOverdue ? 'MISSED / OVERDUE' : isToday ? 'TODAY' : 'UPCOMING'}
+                          </span>
+                          <span className="text-xs text-slate-500">{r.sourceType}</span>
+                        </div>
+                        <p className="text-sm font-medium text-slate-800 mt-0.5">{r.message}</p>
+                        {r.responsiblePerson && <p className="text-xs text-slate-500">Owner: {r.responsiblePerson}</p>}
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => setCompletingReminder(r)}
+                          className="text-[11px] font-semibold text-emerald-700 hover:text-emerald-900 bg-emerald-50 hover:bg-emerald-100 px-2 py-0.5 rounded border border-emerald-200 cursor-pointer"
+                        >
+                          ✅ Mark Met
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setReschedulingReminder(r)}
+                          className="text-[11px] font-semibold text-amber-800 hover:text-amber-950 bg-amber-50 hover:bg-amber-100 px-2 py-0.5 rounded border border-amber-200 cursor-pointer"
+                        >
+                          📅 Reschedule
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => dismissReminder(r._id)}
+                          className="text-xs text-slate-400 hover:text-slate-700 cursor-pointer p-0.5"
+                          title="Dismiss"
+                        >
+                          ✕
+                        </button>
+                      </div>
                     </div>
-                    <button type="button" onClick={() => dismissReminder(r._id)} className="text-xs text-slate-500 hover:text-slate-700 cursor-pointer shrink-0">Dismiss</button>
-                  </div>
-                ))}
-            </div>
+                  );
+                })}
+              </div>
           </div>
 
           <div className="grid grid-cols-1 xl:grid-cols-[3fr_2fr] gap-6 items-start">
@@ -598,6 +654,25 @@ const EventsModule = () => {
           </div>
         )}
       </Modal>
+
+      {/* Resolution Modals */}
+      {reschedulingReminder && (
+        <RescheduleReminderModal
+          open={!!reschedulingReminder}
+          onClose={() => setReschedulingReminder(null)}
+          reminder={reschedulingReminder}
+          onRescheduled={handleRescheduled}
+        />
+      )}
+
+      {completingReminder && (
+        <CompleteReminderModal
+          open={!!completingReminder}
+          onClose={() => setCompletingReminder(null)}
+          reminder={completingReminder}
+          onCompleted={handleCompleted}
+        />
+      )}
     </div>
   );
 };
