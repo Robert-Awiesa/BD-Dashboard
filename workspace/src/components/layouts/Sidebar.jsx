@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { useDashboard } from '../../context/hooks/DashboardContext';
+import { useDashboard } from '../../context/hooks/useDashboard';
 import NavIcon from './navIcons';
 
 const NAV_ITEMS = [

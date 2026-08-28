@@ -17,6 +17,11 @@ const trainingScheduleSchema = new mongoose.Schema(
     
     status: { type: String, enum: SCHEDULE_STATUSES, default: 'Upcoming' },
     convertedTrainingId: { type: mongoose.Schema.Types.ObjectId, ref: 'Training', default: null },
+
+    // Archive before delete, as everywhere else in the workspace: a record
+    // removed by a misclick takes its history with it.
+    archived: { type: Boolean, default: false },
+    archivedAt: { type: Date },
   },
   {
     timestamps: true,

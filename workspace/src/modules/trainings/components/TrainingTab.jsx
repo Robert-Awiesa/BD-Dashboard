@@ -26,7 +26,7 @@ const STATUS_BADGES = {
   Cancelled: 'bg-slate-100 text-slate-500 border-slate-200',
 };
 
-const TrainingTab = ({ trainings, loading, onEdit, onDelete, onOpenCreate, onQuickStatus }) => {
+const TrainingTab = ({ trainings, loading, onEdit, onDelete, onArchive, onOpenCreate, onQuickStatus }) => {
   const [activeSubTab, setActiveSubTab] = useState('Internal');
   const [statusFilter, setStatusFilter] = useState('All');
   const [search, setSearch] = useState('');
@@ -196,12 +196,21 @@ const TrainingTab = ({ trainings, loading, onEdit, onDelete, onOpenCreate, onQui
                       ✏️
                     </button>
                     <button
-                      onClick={() => onDelete(item)}
-                      className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg text-xs"
-                      title="Delete Training"
+                      onClick={() => onArchive(item)}
+                      className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg text-xs cursor-pointer"
+                      title={item.archived ? 'Put back on the list' : 'Archive'}
                     >
-                      🗑️
+                      {item.archived ? '↩️' : '📦'}
                     </button>
+                    {item.archived && (
+                      <button
+                        onClick={() => onDelete(item)}
+                        className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg text-xs cursor-pointer"
+                        title="Delete for good"
+                      >
+                        🗑️
+                      </button>
+                    )}
                   </div>
                 </div>
 

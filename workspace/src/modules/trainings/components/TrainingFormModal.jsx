@@ -95,48 +95,6 @@ const TrainingFormModal = ({
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    if (existing) {
-      setSelectedScheduleId('');
-      setForm({
-        ...emptyForm,
-        ...existing,
-        dateRange: {
-          start: toDateInput(existing.dateRange?.start),
-          end: toDateInput(existing.dateRange?.end),
-        },
-        participants: existing.participants || [],
-        externalDetails: {
-          ...emptyForm.externalDetails,
-          ...(existing.externalDetails || {}),
-        },
-      });
-    } else if (fromSchedule) {
-      setSelectedScheduleId(fromSchedule._id);
-      setForm({
-        ...emptyForm,
-        type: fromSchedule.targetType || 'Internal',
-        title: fromSchedule.title || '',
-        facilitator: fromSchedule.targetType === 'Internal' ? fromSchedule.facilitatorOrVendor || '' : '',
-        description: fromSchedule.description || fromSchedule.note || '',
-        dateRange: {
-          start: toDateInput(fromSchedule.targetDate),
-          end: toDateInput(fromSchedule.targetDate),
-        },
-        progress: 'Completed',
-        externalDetails: {
-          ...emptyForm.externalDetails,
-          organizers: fromSchedule.category || '',
-          cost: 'Free',
-        },
-      });
-    } else {
-      setSelectedScheduleId('');
-      setForm({ ...emptyForm, type: initialType });
-    }
-    setError(null);
-  }, [existing, initialType, fromSchedule, open]);
-
-  useEffect(() => {
     let ignore = false;
     bdApi
       .getTeamRoster()

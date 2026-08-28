@@ -80,33 +80,40 @@ const GhanaHolidaysWorkspace = () => {
   // Month navigation for Calendar view
   const [currentCalMonth, setCurrentCalMonth] = useState(new Date().getMonth());
 
-  const loadHolidays = async () => {
-    setLoading(true);
-    try {
-      const [list, s] = await Promise.all([
-        bdApi.getHolidays({ year, status: statusFilter, search }),
-        bdApi.getHolidayStats(),
-      ]);
-      setHolidays(Array.isArray(list) ? list : []);
-      setStats(s);
-      setError(null);
-    } catch (err) {
-      setHolidays([]);
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Nothing is set synchronously in the effect body — the state settles in the
+  // promise callbacks. A reload token stands in for calling the loader by hand,
+  // so the sync button and the filters go through the same path.
+  const [reloadToken, setReloadToken] = useState(0);
+  const reload = () => setReloadToken((t) => t + 1);
 
   useEffect(() => {
-    loadHolidays();
-  }, [year, statusFilter, search]);
+    let ignore = false;
+    Promise.all([
+      bdApi.getHolidays({ year, status: statusFilter, search }),
+      bdApi.getHolidayStats(),
+    ])
+      .then(([list, s]) => {
+        if (ignore) return;
+        setHolidays(Array.isArray(list) ? list : []);
+        setStats(s);
+        setError(null);
+      })
+      .catch((err) => {
+        if (ignore) return;
+        setHolidays([]);
+        setError(err.message);
+      })
+      .finally(() => {
+        if (!ignore) setLoading(false);
+      });
+    return () => { ignore = true; };
+  }, [year, statusFilter, search, reloadToken]);
 
   const handleSync = async () => {
     setSyncing(true);
     try {
       await bdApi.syncHolidays(year);
-      await loadHolidays();
+      reload();
     } catch (err) {
       alert(`Sync failed: ${err.message}`);
     } finally {

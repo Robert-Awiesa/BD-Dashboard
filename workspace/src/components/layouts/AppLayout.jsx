@@ -1,7 +1,7 @@
 import Header from './Header';
 import Sidebar from './Sidebar';
 import LogInteractionModal from '../../modules/client-relationships/LogInteractionModal';
-import { useDashboard } from '../../context/hooks/DashboardContext';
+import { useDashboard } from '../../context/hooks/useDashboard';
 
 const AppLayout = ({ children }) => {
   const { sidebarCollapsed, quickLogOpen, setQuickLogOpen } = useDashboard();

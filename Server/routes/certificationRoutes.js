@@ -1,11 +1,10 @@
 const express = require('express');
 const router = express.Router();
-const Certification = require('../models/Certification');
+const trainingService = require('../services/trainingService');
 
 router.get('/', async (req, res) => {
   try {
-    const certs = await Certification.find().sort({ createdAt: -1 });
-    res.json(certs);
+    res.json(await trainingService.getCertifications(req.query));
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -13,9 +12,7 @@ router.get('/', async (req, res) => {
 
 router.post('/', async (req, res) => {
   try {
-    const cert = new Certification(req.body);
-    const saved = await cert.save();
-    res.status(201).json(saved);
+    res.status(201).json(await trainingService.createCertification(req.body));
   } catch (error) {
     res.status(400).json({ message: error.message });
   }
@@ -23,9 +20,15 @@ router.post('/', async (req, res) => {
 
 router.put('/:id', async (req, res) => {
   try {
-    const updated = await Certification.findByIdAndUpdate(req.params.id, req.body, { returnDocument: 'after', runValidators: true });
-    if (!updated) return res.status(404).json({ message: 'Certification not found' });
-    res.json(updated);
+    res.json(await trainingService.updateCertification(req.params.id, req.body));
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+});
+
+router.patch('/:id/archive', async (req, res) => {
+  try {
+    res.json(await trainingService.setCertificationArchived(req.params.id, req.body.archived));
   } catch (error) {
     res.status(400).json({ message: error.message });
   }
@@ -33,11 +36,9 @@ router.put('/:id', async (req, res) => {
 
 router.delete('/:id', async (req, res) => {
   try {
-    const deleted = await Certification.findByIdAndDelete(req.params.id);
-    if (!deleted) return res.status(404).json({ message: 'Certification not found' });
-    res.json({ message: 'Certification deleted', item: deleted });
+    res.json(await trainingService.deleteCertification(req.params.id));
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(400).json({ message: error.message });
   }
 });
 

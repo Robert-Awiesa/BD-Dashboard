@@ -146,6 +146,7 @@ mount('/api/holidays', './routes/holidayRoutes');
 mount('/api/trainings', './routes/trainingRoutes');
 mount('/api/certifications', './routes/certificationRoutes');
 mount('/api/training-schedules', './routes/trainingScheduleRoutes');
+mount('/api/tools', './routes/toolRoutes');
 
 
 

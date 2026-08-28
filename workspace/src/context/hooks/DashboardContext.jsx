@@ -1,7 +1,6 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { bdApi } from '../services/api';
-
-const DashboardContext = createContext();
+import { DashboardContext } from './dashboardStore';
 
 const SIDEBAR_COLLAPSED_KEY = 'bd-sidebar-collapsed';
 const CURRENT_USER_KEY = 'bd-current-user';
@@ -103,12 +102,4 @@ export const DashboardProvider = ({ children }) => {
       {children}
     </DashboardContext.Provider>
   );
-};
-
-export const useDashboard = () => {
-  const context = useContext(DashboardContext);
-  if (!context) {
-    throw new Error('useDashboard must be used within a DashboardProvider');
-  }
-  return context;
 };

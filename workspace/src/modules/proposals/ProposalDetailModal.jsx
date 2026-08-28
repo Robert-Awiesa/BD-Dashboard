@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { bdApi } from '../../context/services/api';
-import { useDashboard } from '../../context/hooks/DashboardContext';
+import { useDashboard } from '../../context/hooks/useDashboard';
 import Modal from '../../components/common/Modal';
 import Button from '../../components/common/Button';
 import Badge from '../../components/common/Badge';

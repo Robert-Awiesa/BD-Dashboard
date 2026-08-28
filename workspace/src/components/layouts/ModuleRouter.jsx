@@ -1,4 +1,4 @@
-import { useDashboard } from '../../context/hooks/DashboardContext';
+import { useDashboard } from '../../context/hooks/useDashboard';
 import PipelineModule from '../../modules/pipeline/PipelineModule';
 import TendersModule from '../../modules/tenders/TendersModule';
 import EventsModule from '../../modules/events/EventsModule';

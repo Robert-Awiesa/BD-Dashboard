@@ -18,6 +18,8 @@ const TrainingModule = () => {
   
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [reloadToken, setReloadToken] = useState(0);
+  const [includeArchived, setIncludeArchived] = useState(false);
   const [year, setYear] = useState(new Date().getFullYear());
 
   // Modal states
@@ -36,12 +38,13 @@ const TrainingModule = () => {
   // Single source of truth for refreshing all training data
   const refreshAll = async () => {
     try {
+      const archivedFlag = includeArchived ? 'true' : '';
       const [trainingsData, schedulesData, statsData] = await Promise.all([
-        bdApi.getTrainings(),
+        bdApi.getTrainings({ includeArchived: archivedFlag }),
         // No year filter here — the calendar component filters by month locally.
         // A year filter on the fetch would hide auto-created schedule entries
         // whose targetYear doesn't match the selected calendar year.
-        bdApi.getTrainingSchedules(),
+        bdApi.getTrainingSchedules({ includeArchived: archivedFlag }),
         bdApi.getTrainingScheduleStats(year),
       ]);
       setTrainings(trainingsData || []);
@@ -52,31 +55,34 @@ const TrainingModule = () => {
     }
   };
 
-  const fetchData = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const [trainingsData, certsData, schedulesData, statsData] = await Promise.all([
-        bdApi.getTrainings(),
-        bdApi.getCertifications(),
-        bdApi.getTrainingSchedules(),
-        bdApi.getTrainingScheduleStats(year),
-      ]);
-      setTrainings(trainingsData || []);
-      setCertifications(certsData || []);
-      setSchedules(schedulesData || []);
-      setScheduleStats(statsData || null);
-    } catch (err) {
-      console.error('Failed to load training & certification data:', err);
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  // The load lives in the effect and settles only in the promise callbacks, so
+  // nothing is set synchronously while React is still rendering. Retry bumps
+  // the token rather than calling the loader by hand.
   useEffect(() => {
-    fetchData();
-  }, [year]);
+    let ignore = false;
+    const archivedFlag = includeArchived ? 'true' : '';
+    Promise.all([
+      bdApi.getTrainings({ includeArchived: archivedFlag }),
+      bdApi.getCertifications({ includeArchived: archivedFlag }),
+      bdApi.getTrainingSchedules({ includeArchived: archivedFlag }),
+      bdApi.getTrainingScheduleStats(year),
+    ])
+      .then(([trainingsData, certsData, schedulesData, statsData]) => {
+        if (ignore) return;
+        setTrainings(trainingsData || []);
+        setCertifications(certsData || []);
+        setSchedules(schedulesData || []);
+        setScheduleStats(statsData || null);
+        setError(null);
+      })
+      .catch((err) => {
+        if (!ignore) setError(err.message);
+      })
+      .finally(() => {
+        if (!ignore) setLoading(false);
+      });
+    return () => { ignore = true; };
+  }, [year, reloadToken, includeArchived]);
 
   // Quick action: Change status
   const handleQuickTrainingStatus = async (id, status) => {
@@ -98,41 +104,62 @@ const TrainingModule = () => {
   };
 
   // Delete handlers
+  // Archive puts a record out of the way; delete only works once it is there.
+  // The refusal comes from the server, so it holds however the call is made.
+  const handleArchiveTraining = async (item) => {
+    try {
+      await bdApi.setTrainingArchived(item._id, !item.archived);
+      setReloadToken((t) => t + 1);
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  const handleArchiveCert = async (item) => {
+    try {
+      await bdApi.setCertificationArchived(item._id, !item.archived);
+      setReloadToken((t) => t + 1);
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  const handleArchiveSchedule = async (item) => {
+    try {
+      await bdApi.setTrainingScheduleArchived(item._id, !item.archived);
+      setReloadToken((t) => t + 1);
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
   const handleDeleteTraining = async (item) => {
-    if (!window.confirm(`Are you sure you want to delete "${item.title}"?`)) return;
+    if (!window.confirm(`Delete "${item.title}" for good? The attendees and takeaways go too.`)) return;
     try {
       await bdApi.deleteTraining(item._id);
-      // Optimistically remove from both lists, then confirm with a server refresh
-      setTrainings((prev) => prev.filter((t) => t._id !== item._id));
-      setSchedules((prev) => prev.filter((s) => String(s.convertedTrainingId) !== String(item._id)));
-      // Refresh to confirm server state is in sync
-      refreshAll();
+      setReloadToken((t) => t + 1);
     } catch (err) {
-      alert(`Error deleting training: ${err.message}`);
+      setError(err.message);
     }
   };
 
   const handleDeleteCert = async (item) => {
-    if (!window.confirm(`Are you sure you want to delete "${item.title}" (${item.candidate})?`))
-      return;
+    if (!window.confirm(`Delete "${item.title}" (${item.candidate}) for good?`)) return;
     try {
       await bdApi.deleteCertification(item._id);
-      setCertifications((prev) => prev.filter((c) => c._id !== item._id));
+      setReloadToken((t) => t + 1);
     } catch (err) {
-      alert(`Error deleting certification: ${err.message}`);
+      setError(err.message);
     }
   };
 
   const handleDeleteSchedule = async (item) => {
-    if (!window.confirm(`Are you sure you want to delete scheduled roadmap "${item.title}"?`))
-      return;
+    if (!window.confirm(`Delete roadmap item "${item.title}" for good?`)) return;
     try {
       await bdApi.deleteTrainingSchedule(item._id);
-      setSchedules((prev) => prev.filter((s) => s._id !== item._id));
-      const newStats = await bdApi.getTrainingScheduleStats(year);
-      setScheduleStats(newStats);
+      setReloadToken((t) => t + 1);
     } catch (err) {
-      alert(`Error deleting schedule: ${err.message}`);
+      setError(err.message);
     }
   };
 
@@ -238,6 +265,17 @@ const TrainingModule = () => {
           </p>
         </div>
 
+        <div className="flex flex-wrap items-center gap-3">
+        <label className="flex items-center gap-1.5 text-xs text-slate-600 cursor-pointer whitespace-nowrap">
+          <input
+            type="checkbox"
+            checked={includeArchived}
+            onChange={(e) => setIncludeArchived(e.target.checked)}
+            className="accent-navy-700 cursor-pointer"
+          />
+          Show archived
+        </label>
+
         {/* Master 3-Tab Switch */}
         <div className="flex flex-wrap bg-slate-100/90 p-1.5 rounded-2xl border border-slate-200/90 shadow-2xs w-fit">
           <button
@@ -285,13 +323,14 @@ const TrainingModule = () => {
             </span>
           </button>
         </div>
+        </div>
       </div>
 
       {error && (
         <div className="p-4 bg-red-50 border border-red-200 rounded-2xl text-xs text-red-700 flex items-center justify-between">
           <span>Failed to sync with database: {error}</span>
           <button
-            onClick={fetchData}
+            onClick={() => setReloadToken((t) => t + 1)}
             className="px-2.5 py-1 bg-red-100 hover:bg-red-200 rounded-lg font-semibold transition-colors"
           >
             Retry
@@ -307,6 +346,7 @@ const TrainingModule = () => {
             loading={loading}
             onEdit={handleOpenEditTraining}
             onDelete={handleDeleteTraining}
+            onArchive={handleArchiveTraining}
             onOpenCreate={handleOpenCreateTraining}
             onQuickStatus={handleQuickTrainingStatus}
           />
@@ -320,6 +360,7 @@ const TrainingModule = () => {
             setYear={setYear}
             onEdit={handleOpenEditSchedule}
             onDelete={handleDeleteSchedule}
+            onArchive={handleArchiveSchedule}
             onOpenCreate={handleOpenCreateSchedule}
             onLaunchTraining={handleLaunchScheduleAsTraining}
             onEditTraining={handleOpenEditTraining}
@@ -330,6 +371,7 @@ const TrainingModule = () => {
             loading={loading}
             onEdit={handleOpenEditCert}
             onDelete={handleDeleteCert}
+            onArchive={handleArchiveCert}
             onOpenCreate={handleOpenCreateCert}
             onQuickStatus={handleQuickCertStatus}
           />
@@ -338,6 +380,8 @@ const TrainingModule = () => {
 
       {/* Modals */}
       <TrainingFormModal
+        key={editingTraining?._id
+          || `new-${scheduleConversionSource?._id || trainingInitialType}`}
         open={trainingModalOpen}
         onClose={() => {
           setTrainingModalOpen(false);
@@ -351,6 +395,7 @@ const TrainingModule = () => {
       />
 
       <CertificationFormModal
+        key={editingCert?._id || 'new-certification'}
         open={certModalOpen}
         onClose={() => setCertModalOpen(false)}
         onSaved={handleCertSaved}
@@ -358,6 +403,7 @@ const TrainingModule = () => {
       />
 
       <TrainingScheduleFormModal
+        key={editingSchedule?._id || `new-${scheduleDefaultDate || 'blank'}`}
         open={scheduleModalOpen}
         onClose={() => setScheduleModalOpen(false)}
         onSaved={handleScheduleSaved}

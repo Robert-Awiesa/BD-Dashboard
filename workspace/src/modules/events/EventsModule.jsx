@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { bdApi } from '../../context/services/api';
 import Button from '../../components/common/Button';
-import Badge from '../../components/common/Badge';
 import Modal from '../../components/common/Modal';
 import CelebrationIcon from './celebrationIcons';
 import EventCard from './EventCard';

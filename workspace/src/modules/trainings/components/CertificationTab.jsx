@@ -44,7 +44,7 @@ const STATUS_BADGES = {
   Completed: 'bg-emerald-50 text-emerald-700 border-emerald-200',
 };
 
-const CertificationTab = ({ certs, loading, onEdit, onDelete, onOpenCreate, onQuickStatus }) => {
+const CertificationTab = ({ certs, loading, onEdit, onDelete, onArchive, onOpenCreate, onQuickStatus }) => {
   const [activeVendor, setActiveVendor] = useState('All');
   const [statusFilter, setStatusFilter] = useState('All');
   const [tenderOnly, setTenderOnly] = useState(false);
@@ -296,12 +296,21 @@ const CertificationTab = ({ certs, loading, onEdit, onDelete, onOpenCreate, onQu
                         ✏️
                       </button>
                       <button
-                        onClick={() => onDelete(c)}
-                        className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg text-xs"
-                        title="Delete Certification"
+                        onClick={() => onArchive(c)}
+                        className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg text-xs cursor-pointer"
+                        title={c.archived ? 'Put back on the list' : 'Archive'}
                       >
-                        🗑️
+                        {c.archived ? '↩️' : '📦'}
                       </button>
+                      {c.archived && (
+                        <button
+                          onClick={() => onDelete(c)}
+                          className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg text-xs cursor-pointer"
+                          title="Delete for good"
+                        >
+                          🗑️
+                        </button>
+                      )}
                     </div>
                   </div>
 

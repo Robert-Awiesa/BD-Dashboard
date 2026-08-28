@@ -1676,8 +1676,12 @@ export const bdApi = {
   },
 
   // Trainings endpoints
-  async getTrainings() {
-    const response = await fetch(`${API_BASE_URL}/trainings`);
+  async getTrainings(filters = {}) {
+    const params = new URLSearchParams(
+      Object.entries(filters).filter(([, v]) => v !== '' && v !== null && v !== undefined)
+    );
+    const qs = params.toString() ? `?${params.toString()}` : '';
+    const response = await fetch(`${API_BASE_URL}/trainings${qs}`);
     return handleResponse(response);
   },
 
@@ -1707,8 +1711,12 @@ export const bdApi = {
   },
 
   // Certifications endpoints
-  async getCertifications() {
-    const response = await fetch(`${API_BASE_URL}/certifications`);
+  async getCertifications(filters = {}) {
+    const params = new URLSearchParams(
+      Object.entries(filters).filter(([, v]) => v !== '' && v !== null && v !== undefined)
+    );
+    const qs = params.toString() ? `?${params.toString()}` : '';
+    const response = await fetch(`${API_BASE_URL}/certifications${qs}`);
     return handleResponse(response);
   },
 
@@ -1774,6 +1782,85 @@ export const bdApi = {
   async deleteTrainingSchedule(id) {
     const response = await fetch(`${API_BASE_URL}/training-schedules/${id}`, {
       method: 'DELETE',
+    });
+    return handleResponse(response);
+  },
+
+  async setTrainingArchived(id, archived) {
+    const response = await fetch(`${API_BASE_URL}/trainings/${id}/archive`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ archived }),
+    });
+    return handleResponse(response);
+  },
+
+  async setCertificationArchived(id, archived) {
+    const response = await fetch(`${API_BASE_URL}/certifications/${id}/archive`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ archived }),
+    });
+    return handleResponse(response);
+  },
+
+  async setTrainingScheduleArchived(id, archived) {
+    const response = await fetch(`${API_BASE_URL}/training-schedules/${id}/archive`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ archived }),
+    });
+    return handleResponse(response);
+  },
+
+  // Working Tools launcher — shared, so a shortcut one person adds is on
+  // everybody's list.
+  async getTools(filters = {}) {
+    const params = new URLSearchParams(
+      Object.entries(filters).filter(([, v]) => v !== '' && v !== null && v !== undefined)
+    );
+    const qs = params.toString() ? `?${params.toString()}` : '';
+    const response = await fetch(`${API_BASE_URL}/tools${qs}`);
+    return handleResponse(response);
+  },
+
+  async addTool(data) {
+    const response = await fetch(`${API_BASE_URL}/tools`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+  },
+
+  async updateTool(id, data) {
+    const response = await fetch(`${API_BASE_URL}/tools/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+  },
+
+  async setToolArchived(id, archived) {
+    const response = await fetch(`${API_BASE_URL}/tools/${id}/archive`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ archived }),
+    });
+    return handleResponse(response);
+  },
+
+  async deleteTool(id) {
+    const response = await fetch(`${API_BASE_URL}/tools/${id}`, { method: 'DELETE' });
+    return handleResponse(response);
+  },
+
+  async importTools(tools, addedBy) {
+    const response = await fetch(`${API_BASE_URL}/tools/import`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tools, addedBy }),
     });
     return handleResponse(response);
   },

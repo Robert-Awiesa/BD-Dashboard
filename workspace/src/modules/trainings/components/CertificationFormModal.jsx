@@ -69,20 +69,6 @@ const CertificationFormModal = ({ open, onClose, onSaved, existing = null }) => 
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    if (existing) {
-      setForm({
-        ...emptyForm,
-        ...existing,
-        issueDate: toDateInput(existing.issueDate),
-        expiryDate: toDateInput(existing.expiryDate),
-      });
-    } else {
-      setForm(emptyForm);
-    }
-    setError(null);
-  }, [existing, open]);
-
-  useEffect(() => {
     let ignore = false;
     bdApi
       .getTeamRoster()

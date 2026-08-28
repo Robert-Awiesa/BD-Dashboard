@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import Modal from '../../../components/common/Modal';
 import Button from '../../../components/common/Button';
 import { bdApi } from '../../../context/services/api';
@@ -44,22 +44,6 @@ const TrainingScheduleFormModal = ({ open, onClose, onSaved, existing = null, de
 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
-
-  useEffect(() => {
-    if (existing) {
-      setForm({
-        ...emptyForm,
-        ...existing,
-        targetDate: toDateInput(existing.targetDate),
-      });
-    } else {
-      setForm({
-        ...emptyForm,
-        targetDate: defaultDate ? toDateInput(defaultDate) : toDateInput(new Date()),
-      });
-    }
-    setError(null);
-  }, [existing, defaultDate, open]);
 
   const submit = async (e) => {
     e.preventDefault();

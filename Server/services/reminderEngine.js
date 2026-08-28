@@ -57,10 +57,14 @@ const upsertReminder = async (payload) => {
     updatePayload.originalDeadlineDate = deadlineDate || reminderDate;
   }
 
+  // runValidators, so Reminder.SOURCE_TYPES is a real guard rather than a
+  // decorative list. Without it findOneAndUpdate skips the enum entirely and an
+  // evaluator for a source type nobody registered writes rows that look fine
+  // until something tries to populate them.
   return Reminder.findOneAndUpdate(
     { sourceType, sourceId, reminderDate },
     updatePayload,
-    { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true }
+    { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true, runValidators: true }
   );
 };
 

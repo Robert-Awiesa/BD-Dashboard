@@ -23,7 +23,12 @@ const trainingSchema = new mongoose.Schema(
       country: { type: String, trim: true, default: '' },
       organizers: { type: String, trim: true, default: '' },
       cost: { type: String, trim: true, default: 'Free' }
-    }
+    },
+
+    // Archive before delete, as everywhere else in the workspace: a record
+    // removed by a misclick takes its history with it.
+    archived: { type: Boolean, default: false },
+    archivedAt: { type: Date },
   },
   {
     timestamps: true,

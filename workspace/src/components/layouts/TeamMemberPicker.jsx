@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { bdApi } from '../../context/services/api';
-import { useDashboard } from '../../context/hooks/DashboardContext';
+import { useDashboard } from '../../context/hooks/useDashboard';
 import Modal from '../common/Modal';
 import Button from '../common/Button';
 

@@ -57,6 +57,7 @@ const TrainingScheduleTab = ({
   setYear,
   onEdit,
   onDelete,
+  onArchive,
   onOpenCreate,
   onLaunchTraining,
   onEditTraining,
@@ -71,14 +72,6 @@ const TrainingScheduleTab = ({
 
   // Unified items list — deduplicated so a logged training never appears twice
   const unifiedItems = useMemo(() => {
-    // Build a set of training IDs that already have a linked schedule entry,
-    // so we don't show both the schedule pill AND the training pill for the same session.
-    const linkedTrainingIds = new Set(
-      schedules
-        .filter((s) => s.status === 'Logged as Training' && s.convertedTrainingId)
-        .map((s) => String(s.convertedTrainingId))
-    );
-
     // 1. Scheduled awareness items — only pure roadmap items (NOT linked to a training)
     // Items with status 'Logged as Training' are represented by the training entry below
     const schedItems = schedules
@@ -496,12 +489,21 @@ const TrainingScheduleTab = ({
                           ✏️
                         </button>
                         <button
-                          onClick={() => onDelete(it.raw)}
-                          className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded text-xs"
-                          title="Delete"
+                          onClick={() => onArchive(it.raw)}
+                          className="p-1 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded text-xs cursor-pointer"
+                          title={it.raw.archived ? 'Put back on the roadmap' : 'Archive'}
                         >
-                          🗑️
+                          {it.raw.archived ? '↩️' : '📦'}
                         </button>
+                        {it.raw.archived && (
+                          <button
+                            onClick={() => onDelete(it.raw)}
+                            className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded text-xs cursor-pointer"
+                            title="Delete for good"
+                          >
+                            🗑️
+                          </button>
+                        )}
                       </div>
                     </div>
 
@@ -592,11 +594,16 @@ const TrainingScheduleTab = ({
                 onClick={() => {
                   const it = selectedItem.raw;
                   setSelectedItem(null);
-                  onDelete(it);
+                  if (it.archived) onDelete(it);
+                  else onArchive(it);
                 }}
-                className="text-xs text-red-600 hover:text-red-800 font-medium"
+                className={`text-xs font-medium cursor-pointer ${
+                  selectedItem.raw.archived
+                    ? 'text-red-600 hover:text-red-800'
+                    : 'text-amber-700 hover:text-amber-900'
+                }`}
               >
-                Delete
+                {selectedItem.raw.archived ? 'Delete for good' : 'Archive'}
               </button>
               <div className="flex items-center gap-2">
                 <Button variant="secondary" onClick={() => setSelectedItem(null)}>

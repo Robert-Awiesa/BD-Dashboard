@@ -2,7 +2,11 @@ const mongoose = require('mongoose');
 
 // 'Interaction' rather than 'FieldVisit' because sourceId uses refPath — the
 // value has to match a registered model name for population to resolve.
-const SOURCE_TYPES = ['Campaign', 'Event', 'Milestone', 'Document', 'Client', 'Interaction', 'Proposal', 'OutreachCampaign', 'Tender', 'Eoi', 'Holiday'];
+const SOURCE_TYPES = [
+  'Campaign', 'Event', 'Milestone', 'Document', 'Client', 'Interaction',
+  'Proposal', 'OutreachCampaign', 'Tender', 'Eoi', 'Holiday',
+  'Training', 'TrainingSchedule', 'Certification',
+];
 
 const rescheduleEntrySchema = new mongoose.Schema(
   {

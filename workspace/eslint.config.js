@@ -18,4 +18,10 @@ export default defineConfig([
       parserOptions: { ecmaFeatures: { jsx: true } },
     },
   },
+  // Build-time config runs in Node, not the browser, so it needs process and
+  // friends. Without this, reading process.env in vite.config.js is a no-undef.
+  {
+    files: ['vite.config.js', 'eslint.config.js'],
+    languageOptions: { globals: globals.node },
+  },
 ])

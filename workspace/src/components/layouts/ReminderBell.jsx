@@ -16,6 +16,9 @@ const SOURCE_LABEL = {
   Event: 'Event',
   Milestone: 'Celebration',
   Holiday: 'Ghana Public Holiday',
+  Training: 'Training',
+  TrainingSchedule: 'Training Roadmap',
+  Certification: 'Certification',
 };
 
 const SOURCE_MODULE = {
@@ -30,6 +33,9 @@ const SOURCE_MODULE = {
   Event: 'events',
   Milestone: 'events',
   Holiday: 'events',
+  Training: 'training',
+  TrainingSchedule: 'training',
+  Certification: 'training',
 };
 
 const ReminderBell = ({ onOpenModule }) => {

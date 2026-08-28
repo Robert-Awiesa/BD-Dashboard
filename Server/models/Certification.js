@@ -13,7 +13,12 @@ const certificationSchema = new mongoose.Schema(
     credentialIdUrl: { type: String, trim: true },
     issueDate: { type: Date },
     expiryDate: { type: Date },
-    tenderPartnerImpact: { type: Boolean, default: false }
+    tenderPartnerImpact: { type: Boolean, default: false },
+
+    // Archive before delete, as everywhere else in the workspace: a record
+    // removed by a misclick takes its history with it.
+    archived: { type: Boolean, default: false },
+    archivedAt: { type: Date },
   },
   {
     timestamps: true,

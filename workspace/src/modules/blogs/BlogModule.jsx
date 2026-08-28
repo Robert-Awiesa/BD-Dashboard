@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { bdApi } from '../../context/services/api';
-import { useDashboard } from '../../context/hooks/DashboardContext';
+import { useDashboard } from '../../context/hooks/useDashboard';
 import Button from '../../components/common/Button';
 import ContentRepositoryView from './ContentRepositoryView';
 import ContentFormModal from './ContentFormModal';

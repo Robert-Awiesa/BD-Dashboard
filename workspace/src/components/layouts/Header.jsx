@@ -1,5 +1,5 @@
 import Button from '../common/Button';
-import { useDashboard } from '../../context/hooks/DashboardContext';
+import { useDashboard } from '../../context/hooks/useDashboard';
 import TeamMemberPicker from './TeamMemberPicker';
 import ReminderBell from './ReminderBell';
 
