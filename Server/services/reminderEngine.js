@@ -9,6 +9,9 @@ const OutreachCampaign = require('../models/OutreachCampaign');
 const Tender = require('../models/Tender');
 const Eoi = require('../models/Eoi');
 const Proposal = require('../models/Proposal');
+const Training = require('../models/Training');
+const TrainingSchedule = require('../models/TrainingSchedule');
+const Certification = require('../models/Certification');
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const REMINDER_LEAD_DAYS = 3; // Tiered alerts: 3 days before, 24h before (1 day), and deadline day (0 days)
@@ -613,6 +616,113 @@ async function evaluateEois(today, todayKey, results) {
   }
 }
 
+// --- Trainings & Certifications: reminders for upcoming roadmap kickoffs and expiring credentials ---
+async function evaluateTrainingsAndSchedules(today, todayKey, results) {
+  // 1. Training Schedules (Awareness Roadmap)
+  const schedules = await TrainingSchedule.find({ status: { $ne: 'Logged as Training' } });
+  for (const s of schedules) {
+    if (!s.targetDate) continue;
+    const targetOnly = dateOnly(s.targetDate);
+    const daysToTarget = daysBetween(today, targetOnly);
+
+    let reminderType = null;
+    let message = null;
+
+    if (daysToTarget >= 0 && (daysToTarget === 0 || daysToTarget === 1 || daysToTarget === 3 || daysToTarget === 7 || daysToTarget === 14)) {
+      reminderType = daysToTarget === 0 ? 'today' : 'upcoming';
+      const when = daysToTarget === 0 ? 'is scheduled for TODAY' : `is scheduled in ${daysToTarget} day(s) (${toDateKey(targetOnly)})`;
+      message = `Training Roadmap: "${s.title}" (${s.category}) ${when}. Target Group: ${s.targetGroup}.`;
+    } else if (daysToTarget < 0 && s.status === 'Upcoming') {
+      const lapsed = -daysToTarget;
+      if (lapsed === 1 || lapsed % 7 === 0) {
+        reminderType = 'overdue';
+        message = `Training Roadmap: "${s.title}" target date passed ${lapsed} day(s) ago. Log attendees to record the training or reschedule.`;
+      }
+    }
+
+    if (!reminderType) continue;
+
+    results.push(await upsertReminder({
+      sourceType: 'TrainingSchedule',
+      sourceId: s._id,
+      sourceLabel: s.title,
+      reminderDate: todayKey,
+      reminderType,
+      message,
+      responsiblePerson: s.targetGroup || 'Training Lead',
+    }));
+  }
+
+  // 2. Active Logged Trainings
+  const trainings = await Training.find({ progress: { $in: ['Planned', 'In Progress'] } });
+  for (const t of trainings) {
+    if (!t.dateRange?.start) continue;
+    const startOnly = dateOnly(t.dateRange.start);
+    const daysToStart = daysBetween(today, startOnly);
+
+    let reminderType = null;
+    let message = null;
+
+    if (daysToStart >= 0 && daysToStart <= REMINDER_LEAD_DAYS) {
+      reminderType = daysToStart === 0 ? 'today' : 'upcoming';
+      const when = daysToStart === 0 ? 'is happening TODAY' : `starts in ${daysToStart} day(s)`;
+      message = `Active Training: "${t.title}" (${t.type}) ${when}. Facilitator/Vendor: ${t.facilitator || t.externalDetails?.organizers || 'TBD'}. Participants: ${t.participants?.length || 0}.`;
+    } else if (daysToStart < 0 && t.progress === 'Planned') {
+      const lapsed = -daysToStart;
+      if (lapsed === 1 || lapsed % 7 === 0) {
+        reminderType = 'overdue';
+        message = `Planned Training "${t.title}" was scheduled for ${lapsed} day(s) ago but is still in Planned status.`;
+      }
+    }
+
+    if (!reminderType) continue;
+
+    results.push(await upsertReminder({
+      sourceType: 'Training',
+      sourceId: t._id,
+      sourceLabel: t.title,
+      reminderDate: todayKey,
+      reminderType,
+      message,
+      responsiblePerson: t.facilitator || 'Training Lead',
+    }));
+  }
+
+  // 3. Certifications Expiring
+  const certs = await Certification.find({ progress: 'Completed', expiryDate: { $ne: null } });
+  for (const c of certs) {
+    const expiryOnly = dateOnly(c.expiryDate);
+    const daysToExpiry = daysBetween(today, expiryOnly);
+
+    let reminderType = null;
+    let message = null;
+
+    if (daysToExpiry >= 0 && (daysToExpiry === 0 || daysToExpiry === 14 || daysToExpiry === 30 || daysToExpiry === 60 || daysToExpiry === 90)) {
+      reminderType = daysToExpiry === 0 ? 'today' : 'upcoming';
+      const when = daysToExpiry === 0 ? 'EXPIRES TODAY' : `expires in ${daysToExpiry} day(s) (${toDateKey(expiryOnly)})`;
+      message = `Certification Renewal: "${c.title}" for ${c.candidate} (${c.ecosystem}) ${when}. Renewal required for partner compliance.`;
+    } else if (daysToExpiry < 0) {
+      const lapsed = -daysToExpiry;
+      if (lapsed === 1 || lapsed % 14 === 0) {
+        reminderType = 'overdue';
+        message = `Expired Certification: "${c.title}" for ${c.candidate} expired ${lapsed} day(s) ago. Staff must renew to maintain partner tier.`;
+      }
+    }
+
+    if (!reminderType) continue;
+
+    results.push(await upsertReminder({
+      sourceType: 'Certification',
+      sourceId: c._id,
+      sourceLabel: c.title,
+      reminderDate: todayKey,
+      reminderType,
+      message,
+      responsiblePerson: c.candidate,
+    }));
+  }
+}
+
 // Safe to call repeatedly — the unique (sourceType, sourceId, reminderDate)
 // index makes each source produce at most one reminder per day.
 async function evaluateReminders() {
@@ -630,6 +740,7 @@ async function evaluateReminders() {
   await evaluateOutreach(today, todayKey, results);
   await evaluateTenders(today, todayKey, results);
   await evaluateEois(today, todayKey, results);
+  await evaluateTrainingsAndSchedules(today, todayKey, results);
 
   try {
     const { evaluateGhanaHolidayReminders } = require('./ghanaHolidayService');

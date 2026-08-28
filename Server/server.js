@@ -143,6 +143,9 @@ mount('/api/outreach', './routes/outreachRoutes');
 mount('/api/proposals', './routes/proposalRoutes');
 mount('/api/partners', './routes/partnerRoutes');
 mount('/api/holidays', './routes/holidayRoutes');
+mount('/api/trainings', './routes/trainingRoutes');
+mount('/api/certifications', './routes/certificationRoutes');
+mount('/api/training-schedules', './routes/trainingScheduleRoutes');
 
 
 

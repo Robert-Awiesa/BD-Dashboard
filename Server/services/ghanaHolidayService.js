@@ -79,7 +79,7 @@ exports.syncGhanaHolidays = async (year = new Date().getFullYear()) => {
         reminderActive,
         status: initialStatus,
       },
-      { upsert: true, new: true }
+      { upsert: true, returnDocument: 'after' }
     );
     synced.push(doc);
   }

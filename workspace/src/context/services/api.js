@@ -1674,4 +1674,118 @@ export const bdApi = {
         throw new Error(`Unknown work item source "${origin.type}"`);
     }
   },
+
+  // Trainings endpoints
+  async getTrainings() {
+    const response = await fetch(`${API_BASE_URL}/trainings`);
+    return handleResponse(response);
+  },
+
+  async addTraining(data) {
+    const response = await fetch(`${API_BASE_URL}/trainings`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+  },
+
+  async updateTraining(id, data) {
+    const response = await fetch(`${API_BASE_URL}/trainings/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+  },
+
+  async deleteTraining(id) {
+    const response = await fetch(`${API_BASE_URL}/trainings/${id}`, {
+      method: 'DELETE',
+    });
+    return handleResponse(response);
+  },
+
+  // Certifications endpoints
+  async getCertifications() {
+    const response = await fetch(`${API_BASE_URL}/certifications`);
+    return handleResponse(response);
+  },
+
+  async addCertification(data) {
+    const response = await fetch(`${API_BASE_URL}/certifications`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+  },
+
+  async updateCertification(id, data) {
+    const response = await fetch(`${API_BASE_URL}/certifications/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+  },
+
+  async deleteCertification(id) {
+    const response = await fetch(`${API_BASE_URL}/certifications/${id}`, {
+      method: 'DELETE',
+    });
+    return handleResponse(response);
+  },
+
+  // Training Schedules & Roadmap endpoints
+  async getTrainingSchedules(filters = {}) {
+    const params = new URLSearchParams(
+      Object.entries(filters).filter(([, v]) => v !== '' && v !== null && v !== undefined)
+    );
+    const qs = params.toString() ? `?${params.toString()}` : '';
+    const response = await fetch(`${API_BASE_URL}/training-schedules${qs}`);
+    return handleResponse(response);
+  },
+
+  async getTrainingScheduleStats(year) {
+    const qs = year ? `?year=${year}` : '';
+    const response = await fetch(`${API_BASE_URL}/training-schedules/stats${qs}`);
+    return handleResponse(response);
+  },
+
+  async addTrainingSchedule(data) {
+    const response = await fetch(`${API_BASE_URL}/training-schedules`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+  },
+
+  async updateTrainingSchedule(id, data) {
+    const response = await fetch(`${API_BASE_URL}/training-schedules/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+  },
+
+  async deleteTrainingSchedule(id) {
+    const response = await fetch(`${API_BASE_URL}/training-schedules/${id}`, {
+      method: 'DELETE',
+    });
+    return handleResponse(response);
+  },
+
+  async convertScheduleToTraining(id, trainingData) {
+    const response = await fetch(`${API_BASE_URL}/training-schedules/${id}/convert`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(trainingData),
+    });
+    return handleResponse(response);
+  },
 };
+
+
